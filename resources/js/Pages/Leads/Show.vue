@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DealCard from '@/Components/DealCard.vue'
 import ActivityFeed from '@/Components/ActivityFeed.vue'
+import PipelineStagesEditor from '@/Components/PipelineStagesEditor.vue'
 
 const props = defineProps({
     lead: {
@@ -162,33 +163,7 @@ function submit() {
                     </div>
                 </div>
 
-                <div class="crm-panel p-5 sm:p-6">
-                    <div class="flex items-end justify-between gap-4">
-                        <div>
-                            <p class="crm-kicker">Этапы</p>
-                            <h3 class="crm-section-title mt-2">Воронка лида</h3>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <article
-                            v-for="stage in availableStages"
-                            :key="stage.id"
-                            class="rounded-[1.15rem] border p-4"
-                            :class="stage.is_current ? 'border-orange-300 bg-orange-50/80 shadow-lg' : 'border-slate-900/8 bg-white/72'"
-                        >
-                            <div class="flex items-center gap-3">
-                                <span class="crm-stage-dot" :style="{ backgroundColor: stage.color || '#94a3b8' }"></span>
-                                <div>
-                                    <p class="font-semibold text-slate-950">{{ stage.name }}</p>
-                                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400">
-                                        {{ stage.is_current ? 'текущий' : stage.is_final ? 'финальный' : 'активный' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </article>
-                    </div>
-                </div>
+                <PipelineStagesEditor title="Воронка лида" :stages="availableStages" />
 
                 <ActivityFeed :items="lead.history" title="История этапов" empty-text="История этапов пока пуста." />
             </section>

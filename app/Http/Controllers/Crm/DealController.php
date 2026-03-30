@@ -118,6 +118,7 @@ class DealController extends Controller
                     'is_final' => (bool) $stage->is_final,
                     'is_fail' => (bool) $stage->is_fail,
                     'is_current' => $stage->id === $deal->pipeline_stage_id,
+                    'update_url' => route('crm.pipeline-stages.update', $stage),
                 ])->values()
                 : [],
             'referenceData' => [

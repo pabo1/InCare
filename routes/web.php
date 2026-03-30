@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Crm\DashboardController;
 use App\Http\Controllers\Crm\DealController;
 use App\Http\Controllers\Crm\LeadController;
+use App\Http\Controllers\Crm\PipelineStageController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/deals', [DealController::class, 'index'])->name('crm.deals.index');
     Route::get('/deals/{deal}', [DealController::class, 'show'])->name('crm.deals.show');
     Route::patch('/deals/{deal}', [DealController::class, 'update'])->name('crm.deals.update');
+
+    Route::patch('/pipeline-stages/{stage}', [PipelineStageController::class, 'update'])->name('crm.pipeline-stages.update');
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

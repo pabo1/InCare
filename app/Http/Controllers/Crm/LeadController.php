@@ -7,6 +7,7 @@ use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Pipeline;
 use App\Models\Task;
+use App\Models\PipelineStage;
 use App\Support\CrmReferenceData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -124,6 +125,7 @@ class LeadController extends Controller
                     'is_final' => (bool) $stage->is_final,
                     'is_fail' => (bool) $stage->is_fail,
                     'is_current' => $stage->id === $lead->pipeline_stage_id,
+                    'update_url' => route('crm.pipeline-stages.update', $stage),
                 ])->values()
                 : [],
             'referenceData' => [
