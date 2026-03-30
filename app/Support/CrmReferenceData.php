@@ -16,6 +16,11 @@ class CrmReferenceData
         };
     }
 
+    public static function values(string $key): array
+    {
+        return array_column(self::options($key), 'value');
+    }
+
     public static function label(string $key, ?string $value, ?string $fallback = null): ?string
     {
         if ($value === null || $value === '') {
@@ -47,6 +52,11 @@ class CrmReferenceData
             ['value' => 'samarkand', 'label' => 'Самарканд'],
             ['value' => 'fergana', 'label' => 'Фергана'],
         ];
+    }
+
+    public static function configuredBranchValues(): array
+    {
+        return array_column(self::branchOptions(), 'value');
     }
 
     private static function leadSources(): array

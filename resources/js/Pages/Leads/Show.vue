@@ -1,6 +1,6 @@
 <script setup>
+import { computed, ref } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DealCard from '@/Components/DealCard.vue'
 import ActivityFeed from '@/Components/ActivityFeed.vue'
@@ -19,18 +19,24 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    dealOptions: {
+        type: Array,
+        default: () => [],
+    },
     referenceData: {
         type: Object,
         default: () => ({
             sources: [],
             requestTypes: [],
             branches: [],
+            taskTypes: [],
         }),
     },
 })
 
 const isEditing = ref(false)
-const form = useForm({
+
+const leadForm = useForm({
     name: props.lead.name ?? '',
     phone: props.lead.phone ?? '',
     source: props.lead.source_value ?? '',
@@ -38,31 +44,83 @@ const form = useForm({
     branch: props.lead.branch_value ?? '',
 })
 
-function fillForm() {
-    form.name = props.lead.name ?? ''
-    form.phone = props.lead.phone ?? ''
-    form.source = props.lead.source_value ?? ''
-    form.request_type = props.lead.request_type_value ?? ''
-    form.branch = props.lead.branch_value ?? ''
+const contactForm = useForm({
+    first_name: props.lead.contact?.first_name ?? '',
+    last_name: props.lead.contact?.last_name ?? '',
+    phone: props.lead.contact?.phone ?? props.lead.phone ?? '',
+    email: props.lead.contact?.email ?? '',
+})
+
+const linkDealForm = useForm({
+    deal_id: '',
+})
+
+const taskForm = useForm({
+    title: '',
+    description: '',
+    type: props.referenceData.taskTypes[0]?.value ?? 'call',
+    due_at: '',
+})
+
+const dealSelectOptions = computed(() =>
+    props.dealOptions.map((option) => ({
+        ...option,
+        title: option.lead_id && option.lead_id !== props.lead.id
+            ? `${option.label} · сейчас привязана к лиду: ${option.lead_name || `#${option.lead_id}`}`
+            : option.label,
+    })),
+)
+
+function fillLeadForm() {
+    leadForm.name = props.lead.name ?? ''
+    leadForm.phone = props.lead.phone ?? ''
+    leadForm.source = props.lead.source_value ?? ''
+    leadForm.request_type = props.lead.request_type_value ?? ''
+    leadForm.branch = props.lead.branch_value ?? ''
 }
 
 function startEditing() {
-    fillForm()
-    form.clearErrors()
+    fillLeadForm()
+    leadForm.clearErrors()
     isEditing.value = true
 }
 
 function cancelEditing() {
-    fillForm()
-    form.clearErrors()
+    fillLeadForm()
+    leadForm.clearErrors()
     isEditing.value = false
 }
 
-function submit() {
-    form.patch(`/leads/${props.lead.id}`, {
+function submitLead() {
+    leadForm.patch(`/leads/${props.lead.id}`, {
         preserveScroll: true,
         onSuccess: () => {
             isEditing.value = false
+        },
+    })
+}
+
+function submitContact() {
+    contactForm.post(`/leads/${props.lead.id}/contact`, {
+        preserveScroll: true,
+    })
+}
+
+function submitLinkedDeal() {
+    linkDealForm.patch(`/leads/${props.lead.id}/deal`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            linkDealForm.reset('deal_id')
+        },
+    })
+}
+
+function submitTask() {
+    taskForm.post(`/leads/${props.lead.id}/tasks`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            taskForm.reset()
+            taskForm.type = props.referenceData.taskTypes[0]?.value ?? 'call'
         },
     })
 }
@@ -73,7 +131,7 @@ function submit() {
 
     <AppLayout
         :title="lead.name || `Лид #${lead.id}`"
-        subtitle="Страница лида с деталями квалификации, текущим этапом, задачами, историей и связанными сделками."
+        subtitle="Страница лида с деталями квалификации, текущим этапом, контактом клиента, задачами и привязанными сделками."
     >
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
             <section class="space-y-6">
@@ -94,43 +152,43 @@ function submit() {
                         </div>
                     </div>
 
-                    <form v-if="isEditing" class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="submit">
+                    <form v-if="isEditing" class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="submitLead">
                         <div>
-                            <label class="crm-label" for="lead-name">Имя</label>
-                            <input id="lead-name" v-model="form.name" type="text" class="crm-input" />
-                            <p v-if="form.errors.name" class="mt-2 text-sm text-rose-600">{{ form.errors.name }}</p>
+                            <label class="crm-label" for="lead-name">Название лида</label>
+                            <input id="lead-name" v-model="leadForm.name" type="text" class="crm-input" />
+                            <p v-if="leadForm.errors.name" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.name }}</p>
                         </div>
                         <div>
                             <label class="crm-label" for="lead-phone">Телефон</label>
-                            <input id="lead-phone" v-model="form.phone" type="text" class="crm-input" />
-                            <p v-if="form.errors.phone" class="mt-2 text-sm text-rose-600">{{ form.errors.phone }}</p>
+                            <input id="lead-phone" v-model="leadForm.phone" type="text" class="crm-input" />
+                            <p v-if="leadForm.errors.phone" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.phone }}</p>
                         </div>
                         <div>
                             <label class="crm-label" for="lead-source">Источник</label>
-                            <select id="lead-source" v-model="form.source" class="crm-select">
+                            <select id="lead-source" v-model="leadForm.source" class="crm-select">
                                 <option value="">Не выбран</option>
                                 <option v-for="option in referenceData.sources" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
-                            <p v-if="form.errors.source" class="mt-2 text-sm text-rose-600">{{ form.errors.source }}</p>
+                            <p v-if="leadForm.errors.source" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.source }}</p>
                         </div>
                         <div>
                             <label class="crm-label" for="lead-request-type">Тип запроса</label>
-                            <select id="lead-request-type" v-model="form.request_type" class="crm-select">
+                            <select id="lead-request-type" v-model="leadForm.request_type" class="crm-select">
                                 <option value="">Не выбран</option>
                                 <option v-for="option in referenceData.requestTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
-                            <p v-if="form.errors.request_type" class="mt-2 text-sm text-rose-600">{{ form.errors.request_type }}</p>
+                            <p v-if="leadForm.errors.request_type" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.request_type }}</p>
                         </div>
                         <div>
                             <label class="crm-label" for="lead-branch">Филиал</label>
-                            <select id="lead-branch" v-model="form.branch" class="crm-select">
+                            <select id="lead-branch" v-model="leadForm.branch" class="crm-select">
                                 <option value="">Не выбран</option>
                                 <option v-for="option in referenceData.branches" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
-                            <p v-if="form.errors.branch" class="mt-2 text-sm text-rose-600">{{ form.errors.branch }}</p>
+                            <p v-if="leadForm.errors.branch" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.branch }}</p>
                         </div>
                         <div class="md:col-span-2 flex flex-wrap gap-3 pt-2">
-                            <button type="submit" class="crm-button" :disabled="form.processing">{{ form.processing ? 'Сохранение...' : 'Сохранить изменения' }}</button>
+                            <button type="submit" class="crm-button" :disabled="leadForm.processing">{{ leadForm.processing ? 'Сохранение...' : 'Сохранить изменения' }}</button>
                             <button type="button" class="crm-button-ghost" @click="cancelEditing">Отменить</button>
                         </div>
                     </form>
@@ -173,35 +231,81 @@ function submit() {
                     <div class="flex items-end justify-between gap-4">
                         <div>
                             <p class="crm-kicker">Контакт</p>
-                            <h3 class="crm-section-title mt-2">Данные связанного клиента</h3>
+                            <h3 class="crm-section-title mt-2">Данные клиента</h3>
                         </div>
                     </div>
 
-                    <div v-if="lead.contact" class="mt-6 space-y-3 text-sm text-slate-600">
-                        <div class="crm-data-item">
-                            <p class="crm-kicker !text-[0.66rem]">Имя</p>
-                            <p class="mt-2 font-semibold text-slate-950">{{ lead.contact.name }}</p>
+                    <form class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="submitContact">
+                        <div>
+                            <label class="crm-label" for="lead-contact-first-name">Имя</label>
+                            <input id="lead-contact-first-name" v-model="contactForm.first_name" type="text" class="crm-input" />
+                            <p v-if="contactForm.errors.first_name" class="mt-2 text-sm text-rose-600">{{ contactForm.errors.first_name }}</p>
                         </div>
-                        <div class="crm-data-item">
-                            <p class="crm-kicker !text-[0.66rem]">Телефон</p>
-                            <p class="mt-2 font-semibold text-slate-950">{{ lead.contact.phone || 'Не указан' }}</p>
+                        <div>
+                            <label class="crm-label" for="lead-contact-last-name">Фамилия</label>
+                            <input id="lead-contact-last-name" v-model="contactForm.last_name" type="text" class="crm-input" />
+                            <p v-if="contactForm.errors.last_name" class="mt-2 text-sm text-rose-600">{{ contactForm.errors.last_name }}</p>
                         </div>
-                        <div class="crm-data-item">
-                            <p class="crm-kicker !text-[0.66rem]">Email</p>
-                            <p class="mt-2 font-semibold text-slate-950">{{ lead.contact.email || 'Не указан' }}</p>
+                        <div>
+                            <label class="crm-label" for="lead-contact-phone">Телефон</label>
+                            <input id="lead-contact-phone" v-model="contactForm.phone" type="text" class="crm-input" />
+                            <p v-if="contactForm.errors.phone" class="mt-2 text-sm text-rose-600">{{ contactForm.errors.phone }}</p>
                         </div>
+                        <div>
+                            <label class="crm-label" for="lead-contact-email">Email</label>
+                            <input id="lead-contact-email" v-model="contactForm.email" type="email" class="crm-input" />
+                            <p v-if="contactForm.errors.email" class="mt-2 text-sm text-rose-600">{{ contactForm.errors.email }}</p>
+                        </div>
+                        <div class="md:col-span-2 flex flex-wrap gap-3 pt-2">
+                            <button type="submit" class="crm-button" :disabled="contactForm.processing">{{ contactForm.processing ? 'Сохранение...' : (lead.contact ? 'Обновить контакт' : 'Добавить контакт') }}</button>
+                        </div>
+                    </form>
+
+                    <div v-if="lead.contact" class="mt-6 rounded-[1.1rem] border border-slate-900/8 bg-white/72 p-4 text-sm text-slate-600">
+                        <p class="font-semibold text-slate-950">{{ lead.contact.name }}</p>
+                        <p class="mt-2">{{ lead.contact.phone || 'Телефон не указан' }}</p>
+                        <p>{{ lead.contact.email || 'Email не указан' }}</p>
                     </div>
-                    <div v-else class="crm-empty mt-6">К этому лиду пока не привязан контакт.</div>
                 </div>
 
                 <div class="crm-panel p-5 sm:p-6">
                     <div class="flex items-end justify-between gap-4">
                         <div>
                             <p class="crm-kicker">Задачи</p>
-                            <h3 class="crm-section-title mt-2">Следующие действия</h3>
+                            <h3 class="crm-section-title mt-2">Добавить задачу</h3>
                         </div>
                         <p class="text-sm text-slate-500">{{ lead.tasks.length }} шт.</p>
                     </div>
+
+                    <form class="mt-6 grid gap-4" @submit.prevent="submitTask">
+                        <div>
+                            <label class="crm-label" for="lead-task-title">Заголовок</label>
+                            <input id="lead-task-title" v-model="taskForm.title" type="text" class="crm-input" />
+                            <p v-if="taskForm.errors.title" class="mt-2 text-sm text-rose-600">{{ taskForm.errors.title }}</p>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="crm-label" for="lead-task-type">Тип задачи</label>
+                                <select id="lead-task-type" v-model="taskForm.type" class="crm-select">
+                                    <option v-for="option in referenceData.taskTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
+                                </select>
+                                <p v-if="taskForm.errors.type" class="mt-2 text-sm text-rose-600">{{ taskForm.errors.type }}</p>
+                            </div>
+                            <div>
+                                <label class="crm-label" for="lead-task-due-at">Срок</label>
+                                <input id="lead-task-due-at" v-model="taskForm.due_at" type="datetime-local" class="crm-input" />
+                                <p v-if="taskForm.errors.due_at" class="mt-2 text-sm text-rose-600">{{ taskForm.errors.due_at }}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="crm-label" for="lead-task-description">Описание</label>
+                            <textarea id="lead-task-description" v-model="taskForm.description" rows="3" class="crm-textarea"></textarea>
+                            <p v-if="taskForm.errors.description" class="mt-2 text-sm text-rose-600">{{ taskForm.errors.description }}</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3 pt-2">
+                            <button type="submit" class="crm-button" :disabled="taskForm.processing">{{ taskForm.processing ? 'Добавление...' : 'Добавить задачу' }}</button>
+                        </div>
+                    </form>
 
                     <div v-if="lead.tasks.length" class="mt-6 space-y-3">
                         <article v-for="task in lead.tasks" :key="task.id" class="rounded-[1.1rem] border border-slate-900/8 bg-white/72 p-4">
@@ -222,16 +326,30 @@ function submit() {
                 <div class="crm-panel p-5 sm:p-6">
                     <div class="flex items-end justify-between gap-4">
                         <div>
-                            <p class="crm-kicker">После конверсии</p>
-                            <h3 class="crm-section-title mt-2">Связанные сделки</h3>
+                            <p class="crm-kicker">Сделки</p>
+                            <h3 class="crm-section-title mt-2">Привязать лид к сделке</h3>
                         </div>
                         <Link href="/deals" class="crm-button-ghost">Все сделки</Link>
                     </div>
 
+                    <form class="mt-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]" @submit.prevent="submitLinkedDeal">
+                        <div>
+                            <label class="crm-label" for="lead-deal-link">Сделка</label>
+                            <select id="lead-deal-link" v-model="linkDealForm.deal_id" class="crm-select">
+                                <option value="">Выберите сделку</option>
+                                <option v-for="option in dealSelectOptions" :key="option.id" :value="option.id">{{ option.title }}</option>
+                            </select>
+                            <p v-if="linkDealForm.errors.deal_id" class="mt-2 text-sm text-rose-600">{{ linkDealForm.errors.deal_id }}</p>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="crm-button w-full sm:w-auto" :disabled="linkDealForm.processing">{{ linkDealForm.processing ? 'Привязка...' : 'Привязать' }}</button>
+                        </div>
+                    </form>
+
                     <div v-if="relatedDeals.length" class="mt-6 grid gap-4">
                         <DealCard v-for="deal in relatedDeals" :key="deal.id" :deal="deal" />
                     </div>
-                    <div v-else class="crm-empty mt-6">Этот лид пока не конвертирован в сделку.</div>
+                    <div v-else class="crm-empty mt-6">Этот лид пока не привязан ни к одной сделке.</div>
                 </div>
             </section>
         </div>

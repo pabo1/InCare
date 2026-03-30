@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\Pipeline;
 use App\Models\PipelineStage;
 use App\Models\Task;
@@ -111,6 +113,16 @@ class DealController extends Controller
             'analyses',
         ]);
 
+        $leadOptions = Lead::query()
+            ->latest('updated_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (Lead $leadOption) => [
+                'id' => $leadOption->id,
+                'label' => 'Лид #' . $leadOption->id . ' · ' . ($leadOption->name ?: 'Без названия'),
+            ])
+            ->values();
+
         return Inertia::render('Deals/Show', [
             'deal' => $this->serializeDealDetail($deal),
             'availableStages' => $deal->pipeline
@@ -127,7 +139,9 @@ class DealController extends Controller
             'referenceData' => [
                 'branches' => CrmReferenceData::branchOptions(),
                 'paymentStatuses' => CrmReferenceData::options('payment_statuses'),
+                'taskTypes' => CrmReferenceData::options('task_types'),
             ],
+            'leadOptions' => $leadOptions,
         ]);
     }
 
@@ -137,12 +151,89 @@ class DealController extends Controller
             'name' => 'required|string|max:255',
             'branch' => $this->branchRules(),
             'appointment_at' => 'nullable|date',
-            'payment_status' => ['nullable', 'string', Rule::in(array_column(CrmReferenceData::options('payment_statuses'), 'value'))],
+            'payment_status' => ['nullable', 'string', Rule::in(CrmReferenceData::values('payment_statuses'))],
             'cancel_reason' => 'nullable|string|max:255',
             'amount' => 'nullable|numeric',
         ]);
 
         $deal->update($data);
+
+        return redirect()->route('crm.deals.show', $deal);
+    }
+
+    public function upsertContact(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255',
+        ]);
+
+        $contact = $deal->contact ?? $this->findMatchingContact(
+            $data['phone'] ?? null,
+            $data['email'] ?? null,
+        ) ?? new Contact();
+
+        $contact->fill([
+            'name' => $this->buildFullName($data['first_name'], $data['last_name'] ?? null),
+            'phone' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
+            'branch' => $deal->branch,
+            'meta' => $this->mergeMeta($contact->meta, [
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'] ?? null,
+            ]),
+        ]);
+        $contact->save();
+
+        $deal->update(['contact_id' => $contact->id]);
+
+        if ($deal->lead && ! $deal->lead->contact_id) {
+            $deal->lead->update(['contact_id' => $contact->id]);
+        }
+
+        return redirect()->route('crm.deals.show', $deal);
+    }
+
+    public function attachLead(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'lead_id' => 'nullable|exists:leads,id',
+        ]);
+
+        $leadId = $data['lead_id'] ?? null;
+
+        $deal->update(['lead_id' => $leadId]);
+
+        if ($leadId) {
+            $lead = Lead::query()->findOrFail($leadId);
+
+            if ($lead->contact_id && ! $deal->contact_id) {
+                $deal->update(['contact_id' => $lead->contact_id]);
+            }
+        }
+
+        return redirect()->route('crm.deals.show', $deal);
+    }
+
+    public function storeTask(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'type' => ['nullable', Rule::in(CrmReferenceData::values('task_types'))],
+            'due_at' => 'nullable|date',
+        ]);
+
+        $deal->tasks()->create([
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'user_id' => $request->user()->id,
+            'type' => $data['type'] ?? Task::TYPE_CALL,
+            'status' => Task::STATUS_PENDING,
+            'due_at' => $data['due_at'] ?? null,
+        ]);
 
         return redirect()->route('crm.deals.show', $deal);
     }
@@ -187,7 +278,7 @@ class DealController extends Controller
 
     private function branchRules(): array
     {
-        $branches = array_column(CrmReferenceData::branchOptions(), 'value');
+        $branches = CrmReferenceData::configuredBranchValues();
 
         return $branches === []
             ? ['nullable', 'string', 'max:255']
@@ -224,6 +315,8 @@ class DealController extends Controller
 
     private function serializeDealDetail(Deal $deal): array
     {
+        $contactNames = $this->splitContactName($deal->contact);
+
         return [
             'id' => $deal->id,
             'title' => $deal->name,
@@ -243,6 +336,8 @@ class DealController extends Controller
             'contact' => $deal->contact ? [
                 'id' => $deal->contact->id,
                 'name' => $deal->contact->name,
+                'first_name' => $contactNames['first_name'],
+                'last_name' => $contactNames['last_name'],
                 'phone' => $deal->contact->phone,
                 'email' => $deal->contact->email,
             ] : null,
@@ -290,5 +385,60 @@ class DealController extends Controller
                         : 'Текущий этап',
                 ])->all(),
         ];
+    }
+
+    private function splitContactName(?Contact $contact): array
+    {
+        if (! $contact) {
+            return [
+                'first_name' => '',
+                'last_name' => '',
+            ];
+        }
+
+        $meta = $contact->meta ?? [];
+        $firstName = trim((string) ($meta['first_name'] ?? ''));
+        $lastName = trim((string) ($meta['last_name'] ?? ''));
+
+        if ($firstName !== '' || $lastName !== '') {
+            return [
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+            ];
+        }
+
+        $parts = preg_split('/\s+/u', trim((string) $contact->name)) ?: [];
+
+        return [
+            'first_name' => $parts[0] ?? '',
+            'last_name' => implode(' ', array_slice($parts, 1)),
+        ];
+    }
+
+    private function buildFullName(string $firstName, ?string $lastName): string
+    {
+        return trim($firstName . ' ' . ($lastName ?? ''));
+    }
+
+    private function mergeMeta(?array $current, array $values): ?array
+    {
+        $meta = array_merge($current ?? [], array_filter(
+            $values,
+            static fn ($value) => $value !== null && $value !== ''
+        ));
+
+        return $meta === [] ? null : $meta;
+    }
+
+    private function findMatchingContact(?string $phone, ?string $email): ?Contact
+    {
+        if ($phone === null && $email === null) {
+            return null;
+        }
+
+        return Contact::query()
+            ->when($phone !== null, fn ($query) => $query->where('phone', $phone))
+            ->when($email !== null, fn ($query) => $query->orWhere('email', $email))
+            ->first();
     }
 }

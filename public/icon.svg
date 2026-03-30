@@ -1,0 +1,15 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(100, 100)">
+    <!-- левый наушник: вниз, потом вправо (внутрь U) -->
+    <polyline fill="none" stroke="#2a7fc1" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" points="-60,-60 -60,-49 -36,-49"/>
+    <!-- правый наушник: вниз, потом влево (внутрь U) -->
+    <polyline fill="none" stroke="#2a7fc1" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" points="60,-60 60,-49 36,-49"/>
+    <!-- широкая U-образная дуга -->
+    <path fill="none" stroke="#2a7fc1" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" d="M -60,-49 C -60,0 -60,20 -60,26 C -60,50 60,50 60,26 L 60,-49"/>
+    <!-- трубка вниз и изгиб к мембране -->
+    <path fill="none" stroke="#2a7fc1" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" d="M 0,50 C 0,70 0,75 0,76 C 0,94 27.5,98 37,89 C 44,82 41,71 34,66"/>
+    <!-- мембрана -->
+    <circle fill="#2a7fc1" cx="29" cy="62" r="8"/>
+    <circle fill="white" cx="29" cy="62" r="3.5"/>
+  </g>
+</svg>
