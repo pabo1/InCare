@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Models\Analysis;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Lead;
@@ -15,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -123,6 +125,18 @@ class DealController extends Controller
             ])
             ->values();
 
+        $analysisOptions = Analysis::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Analysis $analysis) => [
+                'id' => $analysis->id,
+                'name' => $analysis->name,
+                'code' => $analysis->code,
+                'price' => (string) $analysis->price,
+            ])
+            ->values();
+
         return Inertia::render('Deals/Show', [
             'deal' => $this->serializeDealDetail($deal),
             'availableStages' => $deal->pipeline
@@ -142,6 +156,7 @@ class DealController extends Controller
                 'taskTypes' => CrmReferenceData::options('task_types'),
             ],
             'leadOptions' => $leadOptions,
+            'analysisOptions' => $analysisOptions,
         ]);
     }
 
@@ -213,6 +228,29 @@ class DealController extends Controller
                 $deal->update(['contact_id' => $lead->contact_id]);
             }
         }
+
+        return redirect()->route('crm.deals.show', $deal);
+    }
+
+    public function updateAnalyses(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'analyses' => 'nullable|array',
+        ]);
+
+        $analysesPayload = $data['analyses'] ?? [];
+        $stage = $deal->stage()->with('pipeline')->first();
+
+        if ($stage) {
+            CrmStageRequirements::assertDealCanBePlacedInStage(
+                $stage,
+                [],
+                $deal,
+                $this->payloadHasAnalyses($analysesPayload)
+            );
+        }
+
+        $this->syncAnalyses($deal, $analysesPayload);
 
         return redirect()->route('crm.deals.show', $deal);
     }
@@ -357,6 +395,7 @@ class DealController extends Controller
                 'name' => $analysis->name,
                 'code' => $analysis->code,
                 'price' => $analysis->pivot?->price ?? $analysis->price,
+                'selected' => true,
             ])->values()->all(),
             'user' => $deal->user?->name,
             'tasks' => $deal->tasks
@@ -440,5 +479,71 @@ class DealController extends Controller
             ->when($phone !== null, fn ($query) => $query->where('phone', $phone))
             ->when($email !== null, fn ($query) => $query->orWhere('email', $email))
             ->first();
+    }
+
+    private function syncAnalyses(Deal $deal, array $payload): void
+    {
+        $normalized = collect($payload)->map(function ($item) {
+            if (is_numeric($item)) {
+                return [
+                    'id' => (int) $item,
+                    'price' => null,
+                ];
+            }
+
+            if (is_array($item)) {
+                $id = $item['id'] ?? $item['analysis_id'] ?? null;
+                $price = $item['price'] ?? null;
+
+                return [
+                    'id' => $id !== null ? (int) $id : null,
+                    'price' => $price,
+                ];
+            }
+
+            throw ValidationException::withMessages([
+                'analyses' => 'Поле анализов должно содержать идентификаторы или объекты с id.',
+            ]);
+        });
+
+        if ($normalized->contains(fn ($item) => empty($item['id']))) {
+            throw ValidationException::withMessages([
+                'analyses' => 'Каждый анализ должен содержать корректный идентификатор.',
+            ]);
+        }
+
+        $analysisIds = $normalized->pluck('id')->unique()->values();
+        $analyses = Analysis::whereIn('id', $analysisIds)->get()->keyBy('id');
+
+        if ($analyses->count() !== $analysisIds->count()) {
+            throw ValidationException::withMessages([
+                'analyses' => 'Один или несколько анализов не найдены.',
+            ]);
+        }
+
+        $syncData = [];
+
+        foreach ($normalized as $item) {
+            $analysis = $analyses->get($item['id']);
+
+            if ($item['price'] !== null && ! is_numeric($item['price'])) {
+                throw ValidationException::withMessages([
+                    'analyses' => 'Цена анализа должна быть числом.',
+                ]);
+            }
+
+            $syncData[$item['id']] = [
+                'price' => $item['price'] !== null
+                    ? (float) $item['price']
+                    : (float) $analysis->price,
+            ];
+        }
+
+        $deal->analyses()->sync($syncData);
+    }
+
+    private function payloadHasAnalyses(?array $payload): bool
+    {
+        return is_array($payload) && count($payload) > 0;
     }
 }

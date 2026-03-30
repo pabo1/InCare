@@ -28,7 +28,7 @@ html {
 body.crm-body {
     min-height: 100vh;
     color: var(--crm-ink);
-    font-family: 'Sora', ui-sans-serif, sans-serif;
+    font-family: 'IBM Plex Sans', 'Segoe UI', ui-sans-serif, sans-serif;
     background:
         radial-gradient(circle at 18% 18%, rgba(236, 92, 47, 0.13), transparent 22%),
         radial-gradient(circle at 84% 0%, rgba(165, 217, 205, 0.3), transparent 24%),
@@ -284,9 +284,31 @@ body.crm-body {
     grid-template-columns: minmax(0, 1fr);
 }
 
+.crm-dashboard-lower {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.crm-dashboard-leads {
+    min-width: 0;
+}
+
+.crm-dashboard-deals {
+    min-width: 0;
+}
+
+.crm-dashboard-control {
+    min-width: 0;
+}
+
 @media (min-width: 1024px) {
     .crm-login-grid {
         grid-template-columns: minmax(0, 1.15fr) minmax(24rem, 0.85fr);
+    }
+
+    .crm-dashboard-lower {
+        grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr) 22rem;
+        align-items: stretch;
     }
 }
 

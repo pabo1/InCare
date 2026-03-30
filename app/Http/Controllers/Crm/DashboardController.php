@@ -8,6 +8,7 @@ use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Pipeline;
 use App\Models\Task;
+use App\Support\CrmReferenceData;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,7 +33,7 @@ class DashboardController extends Controller
             ->whereNotNull('appointment_at')
             ->where('appointment_at', '>=', now()->startOfDay())
             ->orderBy('appointment_at')
-            ->limit(4)
+            ->limit(2)
             ->get();
 
         $overdueTasks = Task::query()
@@ -97,9 +98,9 @@ class DashboardController extends Controller
             'id' => $lead->id,
             'name' => $lead->name,
             'phone' => $lead->phone,
-            'source' => $lead->source,
-            'request_type' => $lead->request_type,
-            'branch' => $lead->branch,
+            'source' => CrmReferenceData::label('lead_sources', $lead->source, $lead->source),
+            'request_type' => CrmReferenceData::label('request_types', $lead->request_type, $lead->request_type),
+            'branch' => CrmReferenceData::label('branches', $lead->branch, $lead->branch),
             'tasks_count' => $lead->tasks_count,
             'updated_at' => optional($lead->updated_at)?->diffForHumans(),
             'contact' => $lead->contact ? [
@@ -120,8 +121,8 @@ class DashboardController extends Controller
         return [
             'id' => $deal->id,
             'name' => $deal->name,
-            'branch' => $deal->branch,
-            'payment_status' => $deal->payment_status,
+            'branch' => CrmReferenceData::label('branches', $deal->branch, $deal->branch),
+            'payment_status' => CrmReferenceData::label('payment_statuses', $deal->payment_status, $deal->payment_status),
             'appointment_at' => optional($deal->appointment_at)?->format('d.m.Y H:i'),
             'appointment_relative' => optional($deal->appointment_at)?->diffForHumans(),
             'tasks_count' => $deal->tasks_count,

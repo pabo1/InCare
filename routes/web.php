@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/deals/{deal}/stage', [DealController::class, 'moveStage'])->name('crm.deals.stage');
     Route::match(['post', 'patch'], '/deals/{deal}/contact', [DealController::class, 'upsertContact'])->name('crm.deals.contact');
     Route::patch('/deals/{deal}/lead', [DealController::class, 'attachLead'])->name('crm.deals.lead');
+    Route::patch('/deals/{deal}/analyses', [DealController::class, 'updateAnalyses'])->name('crm.deals.analyses');
     Route::post('/deals/{deal}/tasks', [DealController::class, 'storeTask'])->name('crm.deals.tasks.store');
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');

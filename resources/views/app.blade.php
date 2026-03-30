@@ -7,7 +7,7 @@
     <meta name="description" content="CRM-интерфейс для обработки лидов и сделок клиники InCare." />
     <link rel="icon" type="image/svg" href="{{ asset('icon.svg') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=sora:400,500,600,700,800|ibm-plex-mono:400,500" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=ibm-plex-sans:400,500,600,700|ibm-plex-mono:400,500" rel="stylesheet" />
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif

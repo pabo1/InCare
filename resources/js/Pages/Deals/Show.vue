@@ -18,6 +18,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    analysisOptions: {
+        type: Array,
+        default: () => [],
+    },
     referenceData: {
         type: Object,
         default: () => ({
@@ -48,6 +52,19 @@ const contactForm = useForm({
 
 const linkLeadForm = useForm({
     lead_id: props.deal.lead?.id ?? '',
+})
+
+const analysesForm = useForm({
+    analyses: props.analysisOptions
+        .filter((option) => props.deal.analyses.some((analysis) => analysis.id === option.id))
+        .map((option) => {
+            const selectedAnalysis = props.deal.analyses.find((analysis) => analysis.id === option.id)
+
+            return {
+                id: option.id,
+                price: selectedAnalysis?.price ?? option.price,
+            }
+        }),
 })
 
 const taskForm = useForm({
@@ -95,6 +112,39 @@ function submitContact() {
 
 function submitLeadLink() {
     linkLeadForm.patch(`/deals/${props.deal.id}/lead`, {
+        preserveScroll: true,
+    })
+}
+
+function isAnalysisSelected(analysisId) {
+    return analysesForm.analyses.some((analysis) => analysis.id === analysisId)
+}
+
+function toggleAnalysis(option) {
+    if (isAnalysisSelected(option.id)) {
+        analysesForm.analyses = analysesForm.analyses.filter((analysis) => analysis.id !== option.id)
+        return
+    }
+
+    analysesForm.analyses = [
+        ...analysesForm.analyses,
+        {
+            id: option.id,
+            price: option.price,
+        },
+    ]
+}
+
+function updateAnalysisPrice(analysisId, price) {
+    analysesForm.analyses = analysesForm.analyses.map((analysis) =>
+        analysis.id === analysisId
+            ? { ...analysis, price }
+            : analysis,
+    )
+}
+
+function submitAnalyses() {
+    analysesForm.patch(`/deals/${props.deal.id}/analyses`, {
         preserveScroll: true,
     })
 }
@@ -214,10 +264,56 @@ function submitTask() {
                     <div class="flex items-end justify-between gap-4">
                         <div>
                             <p class="crm-kicker">Анализы</p>
-                            <h3 class="crm-section-title mt-2">Добавленные анализы</h3>
+                            <h3 class="crm-section-title mt-2">Перечень анализов</h3>
                         </div>
                         <p class="text-sm text-slate-500">{{ deal.analyses.length }} шт.</p>
                     </div>
+
+                    <form class="mt-6 space-y-4" @submit.prevent="submitAnalyses">
+                        <div class="grid gap-3">
+                            <label
+                                v-for="option in analysisOptions"
+                                :key="option.id"
+                                class="rounded-[1.1rem] border border-slate-900/8 bg-white/72 p-4"
+                            >
+                                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div class="flex items-start gap-3">
+                                        <input
+                                            :checked="isAnalysisSelected(option.id)"
+                                            type="checkbox"
+                                            class="mt-1 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                                            @change="toggleAnalysis(option)"
+                                        />
+                                        <div>
+                                            <p class="font-semibold text-slate-950">{{ option.name }}</p>
+                                            <p class="mt-1 text-sm text-slate-500">{{ option.code || 'без кода' }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="w-full md:w-40">
+                                        <label class="crm-label">Цена</label>
+                                        <input
+                                            :disabled="!isAnalysisSelected(option.id)"
+                                            :value="analysesForm.analyses.find((analysis) => analysis.id === option.id)?.price ?? option.price"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            class="crm-input mt-2"
+                                            @input="updateAnalysisPrice(option.id, $event.target.value)"
+                                        />
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <p v-if="analysesForm.errors.analyses" class="text-sm text-rose-600">{{ analysesForm.errors.analyses }}</p>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button type="submit" class="crm-button" :disabled="analysesForm.processing">
+                                {{ analysesForm.processing ? 'Сохранение...' : 'Сохранить анализы' }}
+                            </button>
+                        </div>
+                    </form>
 
                     <div v-if="deal.analyses.length" class="mt-6 grid gap-3 sm:grid-cols-2">
                         <article v-for="analysis in deal.analyses" :key="analysis.id" class="rounded-[1.1rem] border border-slate-900/8 bg-white/72 p-4">
