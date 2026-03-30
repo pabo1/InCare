@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->name('crm.leads.update');
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->name('crm.leads.destroy');
     Route::patch('/leads/{lead}/stage', [LeadController::class, 'moveStage'])->name('crm.leads.stage');
+    Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])->name('crm.leads.convert');
     Route::match(['post', 'patch'], '/leads/{lead}/contact', [LeadController::class, 'upsertContact'])->name('crm.leads.contact');
     Route::patch('/leads/{lead}/deal', [LeadController::class, 'attachDeal'])->name('crm.leads.deal');
     Route::post('/leads/{lead}/tasks', [LeadController::class, 'storeTask'])->name('crm.leads.tasks.store');

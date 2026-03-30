@@ -62,11 +62,6 @@ function logout() {
                     </Link>
                 </nav>
 
-                <div class="crm-accent-card rounded-[1.35rem] p-4 shadow-xl">
-                    <p class="text-xs font-bold uppercase tracking-[0.22em] text-white/70">Фокус этапа</p>
-                    <p class="mt-3 text-lg font-semibold">Сначала оживляем фронт, затем закрываем недостающую бизнес-логику.</p>
-                </div>
-
                 <div class="rounded-[1.2rem] border border-slate-900/6 bg-white/70 p-4">
                     <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Пользователь</p>
                     <div class="mt-3 flex flex-col gap-3">

@@ -276,6 +276,12 @@ class DealController extends Controller
             if ($lead->contact_id && ! $deal->contact_id) {
                 $deal->update(['contact_id' => $lead->contact_id]);
             }
+
+            $dealStage = $deal->stage()->with('pipeline')->first();
+
+            if ($dealStage) {
+                $this->moveLeadToConvertedStageFromDealStage($lead, $dealStage, $request->user()->id);
+            }
         }
 
         return redirect()->route('crm.deals.show', $deal);
@@ -358,6 +364,10 @@ class DealController extends Controller
                 'user_id' => $request->user()->id,
                 'entered_at' => now(),
             ]);
+
+            if ($deal->lead) {
+                $this->moveLeadToConvertedStageFromDealStage($deal->lead, $stage, $request->user()->id);
+            }
         });
 
         return redirect()->route('crm.deals.show', $deal);
@@ -594,5 +604,39 @@ class DealController extends Controller
     private function payloadHasAnalyses(?array $payload): bool
     {
         return is_array($payload) && count($payload) > 0;
+    }
+
+    private function moveLeadToConvertedStageFromDealStage(Lead $lead, PipelineStage $dealStage, int $actorId): void
+    {
+        if ($dealStage->pipeline?->type !== 'deals' || ! in_array((int) $dealStage->sort_order, [4, 6], true)) {
+            return;
+        }
+
+        $successStage = PipelineStage::query()
+            ->where('pipeline_id', $lead->pipeline_id)
+            ->where('is_final', true)
+            ->where('is_fail', false)
+            ->orderBy('sort_order')
+            ->first();
+
+        if (! $successStage || $successStage->id === $lead->pipeline_stage_id) {
+            return;
+        }
+
+        $lead->stageHistory()
+            ->whereNull('left_at')
+            ->latest('entered_at')
+            ->first()
+            ?->update(['left_at' => now()]);
+
+        $lead->update([
+            'pipeline_stage_id' => $successStage->id,
+        ]);
+
+        $lead->stageHistory()->create([
+            'pipeline_stage_id' => $successStage->id,
+            'user_id' => $actorId,
+            'entered_at' => now(),
+        ]);
     }
 }

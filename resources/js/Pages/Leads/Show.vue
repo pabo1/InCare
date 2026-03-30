@@ -65,6 +65,7 @@ const taskForm = useForm({
 })
 
 const deleteForm = useForm({})
+const convertForm = useForm({})
 
 const dealSelectOptions = computed(() =>
     props.dealOptions.map((option) => ({
@@ -137,6 +138,16 @@ function destroyLead() {
 
     deleteForm.delete(`/leads/${props.lead.id}`)
 }
+
+function convertLead() {
+    if (!window.confirm('Конвертировать лид в сделку?')) {
+        return
+    }
+
+    convertForm.post(`/leads/${props.lead.id}/convert`, {
+        preserveScroll: true,
+    })
+}
 </script>
 
 <template>
@@ -149,23 +160,43 @@ function destroyLead() {
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
             <section class="space-y-6">
                 <div class="crm-panel p-5 sm:p-6">
-                    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div class="min-w-0 flex-1">
-                            <p class="crm-kicker">Лид</p>
-                            <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{{ lead.name || `Лид #${lead.id}` }}</h3>
-                            <p class="mt-3 text-sm text-slate-500">Создано: {{ lead.created_at || 'неизвестно' }} · Обновлено: {{ lead.updated_at || 'неизвестно' }}</p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
-                            <div v-if="lead.stage" class="crm-pill">
-                                <span class="crm-stage-dot" :style="{ backgroundColor: lead.stage.color || '#94a3b8' }"></span>
-                                <span>{{ lead.stage.name }}</span>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0 flex-1">
+                                <p class="crm-kicker">Лид</p>
+                                <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{{ lead.name || `Лид #${lead.id}` }}</h3>
                             </div>
-                            <button v-if="!isEditing" type="button" class="crm-button-ghost shrink-0" @click="startEditing">Редактировать</button>
-                            <button v-else type="button" class="crm-button-ghost shrink-0" @click="cancelEditing">Отмена</button>
-                            <button type="button" class="crm-button-ghost shrink-0 border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700" :disabled="deleteForm.processing" @click="destroyLead">
-                                {{ deleteForm.processing ? 'Удаление...' : 'Удалить' }}
-                            </button>
+                            <div class="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
+                                <div v-if="lead.stage" class="crm-pill">
+                                    <span class="crm-stage-dot" :style="{ backgroundColor: lead.stage.color || '#94a3b8' }"></span>
+                                    <span>{{ lead.stage.name }}</span>
+                                </div>
+                                <button
+                                    v-if="!lead.stage?.is_final || lead.stage?.is_fail"
+                                    type="button"
+                                    class="crm-button shrink-0"
+                                    :disabled="convertForm.processing"
+                                    @click="convertLead"
+                                >
+                                    {{ convertForm.processing ? 'Конвертация...' : 'Конвертировать в сделку' }}
+                                </button>
+                                <button v-if="!isEditing" type="button" class="crm-button-ghost shrink-0" @click="startEditing">Редактировать</button>
+                                <button v-else type="button" class="crm-button-ghost shrink-0" @click="cancelEditing">Отмена</button>
+                                <button type="button" class="crm-button-ghost shrink-0 border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700" :disabled="deleteForm.processing" @click="destroyLead">
+                                    {{ deleteForm.processing ? 'Удаление...' : 'Удалить' }}
+                                </button>
+                            </div>
                         </div>
+
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                            <span class="whitespace-nowrap">Создано: {{ lead.created_at || 'неизвестно' }}</span>
+                            <span class="text-slate-300">•</span>
+                            <span class="whitespace-nowrap">Обновлено: {{ lead.updated_at || 'неизвестно' }}</span>
+                        </div>
+                    </div>
+
+                    <div v-if="convertForm.hasErrors" class="crm-empty mt-6 border-rose-200 text-rose-700">
+                        {{ Object.values(convertForm.errors)[0] }}
                     </div>
 
                     <form v-if="isEditing" class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="submitLead">

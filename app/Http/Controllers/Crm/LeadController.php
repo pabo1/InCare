@@ -101,8 +101,10 @@ class LeadController extends Controller
         ]);
     }
 
-    public function show(Lead $lead): Response
+    public function show(Request $request, Lead $lead): Response
     {
+        $this->syncSuccessfulConversionFromQualifiedDeal($lead, $request->user()->id);
+
         $lead->load([
             'contact',
             'stage',
@@ -214,6 +216,80 @@ class LeadController extends Controller
         $lead->delete();
 
         return redirect()->route('crm.leads.index');
+    }
+
+    public function convert(Request $request, Lead $lead): RedirectResponse
+    {
+        $existingDeal = Deal::query()
+            ->where('lead_id', $lead->id)
+            ->latest('updated_at')
+            ->first();
+
+        if ($existingDeal) {
+            return to_route('crm.deals.show', $existingDeal, 303);
+        }
+
+        CrmStageRequirements::assertLeadReadyForConversion($lead);
+
+        $dealPipeline = Pipeline::query()
+            ->with(['stages' => fn ($query) => $query->orderBy('sort_order')])
+            ->where('type', 'deals')
+            ->firstOrFail();
+
+        $initialStage = $dealPipeline->stages->first();
+
+        abort_unless($initialStage, 500, 'Deal pipeline has no stages.');
+
+        $contact = $lead->contact
+            ?? $this->findMatchingContact($lead->phone, null)
+            ?? Contact::create([
+                'name' => $lead->name,
+                'phone' => $lead->phone,
+                'telegram_chat_id' => $lead->telegram_chat_id,
+                'source' => $lead->source,
+                'branch' => $lead->branch,
+            ]);
+
+        $deal = DB::transaction(function () use ($request, $lead, $dealPipeline, $initialStage, $contact): Deal {
+            if ($lead->contact_id !== $contact->id) {
+                $lead->update(['contact_id' => $contact->id]);
+            }
+
+            $deal = Deal::create([
+                'pipeline_id' => $dealPipeline->id,
+                'pipeline_stage_id' => $initialStage->id,
+                'user_id' => $lead->user_id ?? $request->user()->id,
+                'contact_id' => $contact->id,
+                'lead_id' => $lead->id,
+                'name' => $lead->name,
+                'branch' => $lead->branch,
+                'payment_status' => Deal::PAYMENT_UNPAID,
+                'amount' => 0,
+                'meta' => $this->mergeMeta(null, [
+                    'source' => $lead->source,
+                    'request_type' => $lead->request_type,
+                    'created_from_lead' => true,
+                ]),
+            ]);
+
+            $deal->stageHistory()->create([
+                'pipeline_stage_id' => $deal->pipeline_stage_id,
+                'user_id' => $request->user()->id,
+                'entered_at' => now(),
+            ]);
+
+            $this->moveLeadToConvertedStage($lead, $request->user()->id);
+
+            $lead->update([
+                'meta' => $this->mergeMeta($lead->meta, [
+                    'converted_deal_id' => $deal->id,
+                ]),
+            ]);
+
+            return $deal;
+        });
+
+        return to_route('crm.deals.show', $deal, 303);
     }
 
     public function upsertContact(Request $request, Lead $lead): RedirectResponse
@@ -337,6 +413,10 @@ class LeadController extends Controller
 
     public function moveStage(Request $request, Lead $lead): RedirectResponse
     {
+        if ($this->syncSuccessfulConversionFromQualifiedDeal($lead, $request->user()->id)) {
+            return to_route('crm.leads.show', $lead->fresh(), 303);
+        }
+
         $data = $request->validate([
             'stage_id' => 'required|exists:pipeline_stages,id',
         ]);
@@ -370,7 +450,7 @@ class LeadController extends Controller
             ]);
         });
 
-        return redirect()->route('crm.leads.show', $lead);
+        return to_route('crm.leads.show', $lead, 303);
     }
 
     private function branchRules(): array
@@ -380,6 +460,58 @@ class LeadController extends Controller
         return $branches === []
             ? ['nullable', 'string', 'max:255']
             : ['nullable', 'string', 'max:255', Rule::in($branches)];
+    }
+
+    private function moveLeadToConvertedStage(Lead $lead, int $actorId): void
+    {
+        $successStage = PipelineStage::query()
+            ->where('pipeline_id', $lead->pipeline_id)
+            ->where('is_final', true)
+            ->where('is_fail', false)
+            ->orderBy('sort_order')
+            ->first();
+
+        if (! $successStage || $successStage->id === $lead->pipeline_stage_id) {
+            return;
+        }
+
+        $lead->stageHistory()
+            ->whereNull('left_at')
+            ->latest('entered_at')
+            ->first()
+            ?->update(['left_at' => now()]);
+
+        $lead->update([
+            'pipeline_stage_id' => $successStage->id,
+        ]);
+
+        $lead->stageHistory()->create([
+            'pipeline_stage_id' => $successStage->id,
+            'user_id' => $actorId,
+            'entered_at' => now(),
+        ]);
+    }
+
+    private function syncSuccessfulConversionFromQualifiedDeal(Lead $lead, int $actorId): bool
+    {
+        $qualifiedDealExists = Deal::query()
+            ->where('lead_id', $lead->id)
+            ->whereHas('stage', fn ($query) => $query->whereIn('sort_order', [4, 6]))
+            ->exists();
+
+        if (! $qualifiedDealExists) {
+            return false;
+        }
+
+        $currentStage = PipelineStage::query()->find($lead->pipeline_stage_id);
+
+        if ($currentStage?->is_final && ! $currentStage->is_fail) {
+            return false;
+        }
+
+        $this->moveLeadToConvertedStage($lead, $actorId);
+
+        return true;
     }
 
     private function serializeLeadCard(Lead $lead): array

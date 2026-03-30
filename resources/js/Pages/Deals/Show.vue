@@ -184,7 +184,11 @@ function destroyDeal() {
                         <div class="min-w-0 flex-1">
                             <p class="crm-kicker">Сделка</p>
                             <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{{ deal.name || deal.title || `Сделка #${deal.id}` }}</h3>
-                            <p class="mt-3 text-sm text-slate-500">Создано: {{ deal.created_at || 'неизвестно' }} · Обновлено: {{ deal.updated_at || 'неизвестно' }}</p>
+                            <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                <span class="whitespace-nowrap">Создано: {{ deal.created_at || 'неизвестно' }}</span>
+                                <span class="hidden text-slate-300 sm:inline">•</span>
+                                <span class="whitespace-nowrap">Обновлено: {{ deal.updated_at || 'неизвестно' }}</span>
+                            </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
                             <div v-if="deal.stage" class="crm-pill">
