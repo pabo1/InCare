@@ -1,6 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DealCard from '@/Components/DealCard.vue'
 import KanbanBoard from '@/Components/KanbanBoard.vue'
@@ -35,6 +35,14 @@ const form = reactive({
     payment_status: props.filters.payment_status || '',
 })
 
+const createDealForm = useForm({
+    name: '',
+    branch: '',
+    appointment_at: '',
+    payment_status: '',
+    amount: '',
+})
+
 function submit() {
     router.get('/deals', { ...form }, {
         preserveScroll: true,
@@ -49,6 +57,15 @@ function resetFilters() {
     form.branch = ''
     form.payment_status = ''
     submit()
+}
+
+function submitCreateDeal() {
+    createDealForm.post('/deals')
+}
+
+function resetCreateDeal() {
+    createDealForm.reset()
+    createDealForm.clearErrors()
 }
 </script>
 
@@ -125,12 +142,60 @@ function resetFilters() {
             </div>
         </section>
 
+        <section class="mt-6 crm-panel p-5 sm:p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="crm-kicker">Новая сделка</p>
+                    <h3 class="crm-section-title mt-2">Быстро открыть рабочую карточку</h3>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" class="crm-button-ghost" @click="resetCreateDeal">Очистить</button>
+                    <button type="submit" form="create-deal-form" class="crm-button" :disabled="createDealForm.processing">
+                        {{ createDealForm.processing ? 'Создание...' : 'Создать сделку' }}
+                    </button>
+                </div>
+            </div>
+
+            <form id="create-deal-form" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" @submit.prevent="submitCreateDeal">
+                <div class="xl:col-span-2">
+                    <label class="crm-label" for="create-deal-name">Название сделки</label>
+                    <input id="create-deal-name" v-model="createDealForm.name" class="crm-input" placeholder="Например, Чекап для семьи" />
+                    <p v-if="createDealForm.errors.name" class="mt-2 text-sm text-rose-600">{{ createDealForm.errors.name }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-deal-branch">Филиал</label>
+                    <select id="create-deal-branch" v-model="createDealForm.branch" class="crm-select">
+                        <option value="">Не выбран</option>
+                        <option v-for="option in referenceData.branches" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <p v-if="createDealForm.errors.branch" class="mt-2 text-sm text-rose-600">{{ createDealForm.errors.branch }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-deal-appointment">Дата визита</label>
+                    <input id="create-deal-appointment" v-model="createDealForm.appointment_at" type="datetime-local" class="crm-input" />
+                    <p v-if="createDealForm.errors.appointment_at" class="mt-2 text-sm text-rose-600">{{ createDealForm.errors.appointment_at }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-deal-payment">Оплата</label>
+                    <select id="create-deal-payment" v-model="createDealForm.payment_status" class="crm-select">
+                        <option value="">По умолчанию</option>
+                        <option v-for="option in referenceData.paymentStatuses" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <p v-if="createDealForm.errors.payment_status" class="mt-2 text-sm text-rose-600">{{ createDealForm.errors.payment_status }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-deal-amount">Сумма</label>
+                    <input id="create-deal-amount" v-model="createDealForm.amount" type="number" min="0" step="0.01" class="crm-input" placeholder="0.00" />
+                    <p v-if="createDealForm.errors.amount" class="mt-2 text-sm text-rose-600">{{ createDealForm.errors.amount }}</p>
+                </div>
+            </form>
+        </section>
+
         <KanbanBoard
             v-if="pipeline"
             class="mt-6"
             :title="pipeline.name"
             :stages="pipeline.stages"
-            subtitle="Эта воронка отражает реальный маршрут клиента по анализам: от согласования времени до отправки результата."
         />
 
         <section class="mt-6">

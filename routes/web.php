@@ -22,16 +22,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('crm.dashboard');
 
     Route::get('/leads', [LeadController::class, 'index'])->name('crm.leads.index');
+    Route::post('/leads', [LeadController::class, 'store'])->name('crm.leads.store');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('crm.leads.show');
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->name('crm.leads.update');
+    Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->name('crm.leads.destroy');
     Route::patch('/leads/{lead}/stage', [LeadController::class, 'moveStage'])->name('crm.leads.stage');
     Route::match(['post', 'patch'], '/leads/{lead}/contact', [LeadController::class, 'upsertContact'])->name('crm.leads.contact');
     Route::patch('/leads/{lead}/deal', [LeadController::class, 'attachDeal'])->name('crm.leads.deal');
     Route::post('/leads/{lead}/tasks', [LeadController::class, 'storeTask'])->name('crm.leads.tasks.store');
 
     Route::get('/deals', [DealController::class, 'index'])->name('crm.deals.index');
+    Route::post('/deals', [DealController::class, 'store'])->name('crm.deals.store');
     Route::get('/deals/{deal}', [DealController::class, 'show'])->name('crm.deals.show');
     Route::patch('/deals/{deal}', [DealController::class, 'update'])->name('crm.deals.update');
+    Route::delete('/deals/{deal}', [DealController::class, 'destroy'])->name('crm.deals.destroy');
     Route::patch('/deals/{deal}/stage', [DealController::class, 'moveStage'])->name('crm.deals.stage');
     Route::match(['post', 'patch'], '/deals/{deal}/contact', [DealController::class, 'upsertContact'])->name('crm.deals.contact');
     Route::patch('/deals/{deal}/lead', [DealController::class, 'attachLead'])->name('crm.deals.lead');

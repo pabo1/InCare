@@ -94,6 +94,7 @@ class LeadController extends Controller
             'referenceData' => [
                 'sources' => CrmReferenceData::options('lead_sources'),
                 'requestTypes' => CrmReferenceData::options('request_types'),
+                'qualities' => CrmReferenceData::options('lead_qualities'),
                 'branches' => CrmReferenceData::branchOptions(),
             ],
             'leads' => $leads,
@@ -147,12 +148,49 @@ class LeadController extends Controller
             'referenceData' => [
                 'sources' => CrmReferenceData::options('lead_sources'),
                 'requestTypes' => CrmReferenceData::options('request_types'),
+                'qualities' => CrmReferenceData::options('lead_qualities'),
                 'branches' => CrmReferenceData::branchOptions(),
                 'taskTypes' => CrmReferenceData::options('task_types'),
             ],
             'dealOptions' => $dealOptions,
             'relatedDeals' => $relatedDeals->map(fn (Deal $deal) => $this->serializeRelatedDeal($deal))->values(),
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'source' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('lead_sources'))],
+            'request_type' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('request_types'))],
+            'quality' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('lead_qualities'))],
+            'branch' => $this->branchRules(),
+        ]);
+
+        $pipeline = Pipeline::query()
+            ->with(['stages' => fn ($query) => $query->orderBy('sort_order')])
+            ->where('type', 'leads')
+            ->firstOrFail();
+
+        $initialStage = $pipeline->stages->first();
+
+        abort_unless($initialStage, 500, 'Lead pipeline has no stages.');
+
+        $lead = Lead::create([
+            ...$data,
+            'pipeline_id' => $pipeline->id,
+            'pipeline_stage_id' => $initialStage->id,
+            'user_id' => $request->user()->id,
+        ]);
+
+        $lead->stageHistory()->create([
+            'pipeline_stage_id' => $lead->pipeline_stage_id,
+            'user_id' => $request->user()->id,
+            'entered_at' => now(),
+        ]);
+
+        return to_route('crm.leads.show', $lead, 303);
     }
 
     public function update(Request $request, Lead $lead): RedirectResponse
@@ -162,12 +200,20 @@ class LeadController extends Controller
             'phone' => 'nullable|string|max:50',
             'source' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('lead_sources'))],
             'request_type' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('request_types'))],
+            'quality' => ['nullable', 'string', 'max:100', Rule::in(CrmReferenceData::values('lead_qualities'))],
             'branch' => $this->branchRules(),
         ]);
 
         $lead->update($data);
 
-        return redirect()->route('crm.leads.show', $lead);
+        return to_route('crm.leads.show', $lead, 303);
+    }
+
+    public function destroy(Lead $lead): RedirectResponse
+    {
+        $lead->delete();
+
+        return redirect()->route('crm.leads.index');
     }
 
     public function upsertContact(Request $request, Lead $lead): RedirectResponse
@@ -199,7 +245,50 @@ class LeadController extends Controller
 
         $lead->update(['contact_id' => $contact->id]);
 
-        return redirect()->route('crm.leads.show', $lead);
+        $existingDeal = Deal::query()
+            ->where('lead_id', $lead->id)
+            ->latest('updated_at')
+            ->first();
+
+        if ($existingDeal) {
+            return redirect()->route('crm.deals.show', $existingDeal);
+        }
+
+        $dealPipeline = Pipeline::query()
+            ->with('stages')
+            ->where('type', 'deals')
+            ->first();
+
+        $initialStage = $dealPipeline?->stages->first();
+
+        if (! $dealPipeline || ! $initialStage) {
+            return redirect()->route('crm.leads.show', $lead);
+        }
+
+        $deal = Deal::create([
+            'pipeline_id' => $dealPipeline->id,
+            'pipeline_stage_id' => $initialStage->id,
+            'user_id' => $lead->user_id ?? $request->user()->id,
+            'contact_id' => $contact->id,
+            'lead_id' => $lead->id,
+            'name' => $lead->name,
+            'branch' => $lead->branch,
+            'payment_status' => Deal::PAYMENT_UNPAID,
+            'amount' => 0,
+            'meta' => $this->mergeMeta(null, [
+                'source' => $lead->source,
+                'request_type' => $lead->request_type,
+                'created_from_lead' => true,
+            ]),
+        ]);
+
+        $deal->stageHistory()->create([
+            'pipeline_stage_id' => $deal->pipeline_stage_id,
+            'user_id' => $request->user()->id,
+            'entered_at' => now(),
+        ]);
+
+        return redirect()->route('crm.deals.show', $deal);
     }
 
     public function attachDeal(Request $request, Lead $lead): RedirectResponse
@@ -222,7 +311,7 @@ class LeadController extends Controller
 
         $deal->update($updates);
 
-        return redirect()->route('crm.leads.show', $lead);
+        return to_route('crm.leads.show', $lead, 303);
     }
 
     public function storeTask(Request $request, Lead $lead): RedirectResponse
@@ -336,7 +425,8 @@ class LeadController extends Controller
             'request_type_value' => $lead->request_type,
             'branch' => CrmReferenceData::label('branches', $lead->branch, $lead->branch),
             'branch_value' => $lead->branch,
-            'quality' => $lead->quality,
+            'quality' => CrmReferenceData::label('lead_qualities', $lead->quality, $lead->quality),
+            'quality_value' => $lead->quality,
             'created_at' => $lead->created_at?->format('d.m.Y H:i'),
             'updated_at' => $lead->updated_at?->format('d.m.Y H:i'),
             'meta' => $lead->meta ?? [],

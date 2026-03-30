@@ -1,6 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import LeadCard from '@/Components/LeadCard.vue'
 import KanbanBoard from '@/Components/KanbanBoard.vue'
@@ -36,6 +36,14 @@ const form = reactive({
     branch: props.filters.branch || '',
 })
 
+const createLeadForm = useForm({
+    name: '',
+    phone: '',
+    source: '',
+    request_type: '',
+    branch: '',
+})
+
 function submit() {
     router.get('/leads', { ...form }, {
         preserveScroll: true,
@@ -51,6 +59,15 @@ function resetFilters() {
     form.request_type = ''
     form.branch = ''
     submit()
+}
+
+function submitCreateLead() {
+    createLeadForm.post('/leads')
+}
+
+function resetCreateLead() {
+    createLeadForm.reset()
+    createLeadForm.clearErrors()
 }
 </script>
 
@@ -130,12 +147,63 @@ function resetFilters() {
             </div>
         </section>
 
+        <section class="mt-6 crm-panel p-5 sm:p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="crm-kicker">Новый лид</p>
+                    <h3 class="crm-section-title mt-2">Быстро добавить обращение</h3>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" class="crm-button-ghost" @click="resetCreateLead">Очистить</button>
+                    <button type="submit" form="create-lead-form" class="crm-button" :disabled="createLeadForm.processing">
+                        {{ createLeadForm.processing ? 'Создание...' : 'Создать лид' }}
+                    </button>
+                </div>
+            </div>
+
+            <form id="create-lead-form" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" @submit.prevent="submitCreateLead">
+                <div class="xl:col-span-2">
+                    <label class="crm-label" for="create-lead-name">Имя клиента</label>
+                    <input id="create-lead-name" v-model="createLeadForm.name" class="crm-input" placeholder="Например, Алина Каримова" />
+                    <p v-if="createLeadForm.errors.name" class="mt-2 text-sm text-rose-600">{{ createLeadForm.errors.name }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-lead-phone">Телефон</label>
+                    <input id="create-lead-phone" v-model="createLeadForm.phone" class="crm-input" placeholder="+998 ..." />
+                    <p v-if="createLeadForm.errors.phone" class="mt-2 text-sm text-rose-600">{{ createLeadForm.errors.phone }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-lead-source">Источник</label>
+                    <select id="create-lead-source" v-model="createLeadForm.source" class="crm-select">
+                        <option value="">Не указан</option>
+                        <option v-for="option in referenceData.sources" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <p v-if="createLeadForm.errors.source" class="mt-2 text-sm text-rose-600">{{ createLeadForm.errors.source }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-lead-request">Тип запроса</label>
+                    <select id="create-lead-request" v-model="createLeadForm.request_type" class="crm-select">
+                        <option value="">Не указан</option>
+                        <option v-for="option in referenceData.requestTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <p v-if="createLeadForm.errors.request_type" class="mt-2 text-sm text-rose-600">{{ createLeadForm.errors.request_type }}</p>
+                </div>
+                <div>
+                    <label class="crm-label" for="create-lead-branch">Филиал</label>
+                    <select id="create-lead-branch" v-model="createLeadForm.branch" class="crm-select">
+                        <option value="">Не выбран</option>
+                        <option v-for="option in referenceData.branches" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <p v-if="createLeadForm.errors.branch" class="mt-2 text-sm text-rose-600">{{ createLeadForm.errors.branch }}</p>
+                </div>
+            </form>
+        </section>
+
         <KanbanBoard
             v-if="pipeline"
             class="mt-6"
             :title="pipeline.name"
             :stages="pipeline.stages"
-            subtitle="Этапы приведены в соответствие с первой частью ТЗ: теперь в браузере сразу видно, где оператор работает, а где поток теряется."
         />
 
         <section class="mt-6">

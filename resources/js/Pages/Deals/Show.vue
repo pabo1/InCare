@@ -74,6 +74,8 @@ const taskForm = useForm({
     due_at: '',
 })
 
+const deleteForm = useForm({})
+
 function fillDealForm() {
     dealForm.name = props.deal.name ?? props.deal.title ?? ''
     dealForm.branch = props.deal.branch_value ?? ''
@@ -158,6 +160,14 @@ function submitTask() {
         },
     })
 }
+
+function destroyDeal() {
+    if (!window.confirm('Удалить сделку? Это действие можно будет отменить только через восстановление из базы.')) {
+        return
+    }
+
+    deleteForm.delete(`/deals/${props.deal.id}`)
+}
 </script>
 
 <template>
@@ -171,18 +181,21 @@ function submitTask() {
             <section class="space-y-6">
                 <div class="crm-panel p-5 sm:p-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
+                        <div class="min-w-0 flex-1">
                             <p class="crm-kicker">Сделка</p>
                             <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{{ deal.name || deal.title || `Сделка #${deal.id}` }}</h3>
                             <p class="mt-3 text-sm text-slate-500">Создано: {{ deal.created_at || 'неизвестно' }} · Обновлено: {{ deal.updated_at || 'неизвестно' }}</p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
                             <div v-if="deal.stage" class="crm-pill">
                                 <span class="crm-stage-dot" :style="{ backgroundColor: deal.stage.color || '#94a3b8' }"></span>
                                 <span>{{ deal.stage.name }}</span>
                             </div>
-                            <button v-if="!isEditing" type="button" class="crm-button-ghost" @click="startEditing">Редактировать</button>
-                            <button v-else type="button" class="crm-button-ghost" @click="cancelEditing">Отмена</button>
+                            <button v-if="!isEditing" type="button" class="crm-button-ghost shrink-0" @click="startEditing">Редактировать</button>
+                            <button v-else type="button" class="crm-button-ghost shrink-0" @click="cancelEditing">Отмена</button>
+                            <button type="button" class="crm-button-ghost shrink-0 border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700" :disabled="deleteForm.processing" @click="destroyDeal">
+                                {{ deleteForm.processing ? 'Удаление...' : 'Удалить' }}
+                            </button>
                         </div>
                     </div>
 

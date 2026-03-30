@@ -160,6 +160,48 @@ class DealController extends Controller
         ]);
     }
 
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'branch' => $this->branchRules(),
+            'appointment_at' => 'nullable|date',
+            'payment_status' => ['nullable', 'string', Rule::in(CrmReferenceData::values('payment_statuses'))],
+            'amount' => 'nullable|numeric',
+        ]);
+
+        $pipeline = Pipeline::query()
+            ->with(['stages' => fn ($query) => $query->orderBy('sort_order')])
+            ->where('type', 'deals')
+            ->firstOrFail();
+
+        $initialStage = $pipeline->stages->first();
+
+        abort_unless($initialStage, 500, 'Deal pipeline has no stages.');
+
+        CrmStageRequirements::assertDealCanBePlacedInStage(
+            $initialStage,
+            $data + ['payment_status' => $data['payment_status'] ?? Deal::PAYMENT_UNPAID],
+        );
+
+        $deal = Deal::create([
+            ...$data,
+            'pipeline_id' => $pipeline->id,
+            'pipeline_stage_id' => $initialStage->id,
+            'user_id' => $request->user()->id,
+            'payment_status' => $data['payment_status'] ?? Deal::PAYMENT_UNPAID,
+            'amount' => $data['amount'] ?? 0,
+        ]);
+
+        $deal->stageHistory()->create([
+            'pipeline_stage_id' => $deal->pipeline_stage_id,
+            'user_id' => $request->user()->id,
+            'entered_at' => now(),
+        ]);
+
+        return to_route('crm.deals.show', $deal, 303);
+    }
+
     public function update(Request $request, Deal $deal): RedirectResponse
     {
         $data = $request->validate([
@@ -173,7 +215,14 @@ class DealController extends Controller
 
         $deal->update($data);
 
-        return redirect()->route('crm.deals.show', $deal);
+        return to_route('crm.deals.show', $deal, 303);
+    }
+
+    public function destroy(Deal $deal): RedirectResponse
+    {
+        $deal->delete();
+
+        return redirect()->route('crm.deals.index');
     }
 
     public function upsertContact(Request $request, Deal $deal): RedirectResponse
@@ -208,7 +257,7 @@ class DealController extends Controller
             $deal->lead->update(['contact_id' => $contact->id]);
         }
 
-        return redirect()->route('crm.deals.show', $deal);
+        return to_route('crm.deals.show', $deal, 303);
     }
 
     public function attachLead(Request $request, Deal $deal): RedirectResponse

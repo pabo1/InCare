@@ -33,11 +33,11 @@ class DashboardController extends Controller
             ->whereNotNull('appointment_at')
             ->where('appointment_at', '>=', now()->startOfDay())
             ->orderBy('appointment_at')
-            ->limit(2)
+            ->limit(4)
             ->get();
 
         $overdueTasks = Task::query()
-            ->with('user')
+            ->with(['user', 'taskable'])
             ->where('status', Task::STATUS_PENDING)
             ->whereNotNull('due_at')
             ->where('due_at', '<', now())
@@ -142,6 +142,15 @@ class DashboardController extends Controller
 
     private function serializeTask(Task $task): array
     {
+        $taskable = $task->taskable;
+        $href = null;
+
+        if ($taskable instanceof Lead) {
+            $href = route('crm.leads.show', $taskable);
+        } elseif ($taskable instanceof Deal) {
+            $href = route('crm.deals.show', $taskable);
+        }
+
         return [
             'id' => $task->id,
             'title' => $task->title,
@@ -150,6 +159,7 @@ class DashboardController extends Controller
             'due_at' => optional($task->due_at)?->format('d.m.Y H:i'),
             'due_relative' => optional($task->due_at)?->diffForHumans(),
             'user' => $task->user?->name,
+            'href' => $href,
         ];
     }
 }

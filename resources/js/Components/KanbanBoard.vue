@@ -8,21 +8,16 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    subtitle: {
-        type: String,
-        default: '',
-    },
 })
 </script>
 
 <template>
     <section class="crm-panel p-5 sm:p-6">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
             <div>
                 <p class="crm-kicker">Этапы</p>
                 <h3 class="crm-section-title mt-2">{{ title }}</h3>
             </div>
-            <p v-if="subtitle" class="max-w-xl text-sm leading-6 text-slate-600">{{ subtitle }}</p>
         </div>
 
         <div class="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">

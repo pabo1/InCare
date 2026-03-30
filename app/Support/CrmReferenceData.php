@@ -9,6 +9,7 @@ class CrmReferenceData
         return match ($key) {
             'lead_sources' => self::leadSources(),
             'request_types' => self::requestTypes(),
+            'lead_qualities' => self::leadQualities(),
             'payment_statuses' => self::paymentStatuses(),
             'task_types' => self::taskTypes(),
             'task_statuses' => self::taskStatuses(),
@@ -87,6 +88,15 @@ class CrmReferenceData
             ['value' => 'pending', 'label' => 'Ожидает оплаты'],
             ['value' => 'paid', 'label' => 'Оплачено'],
             ['value' => 'partial', 'label' => 'Частично оплачено'],
+        ];
+    }
+
+    private static function leadQualities(): array
+    {
+        return [
+            ['value' => 'spam', 'label' => 'Спам'],
+            ['value' => 'wrong_number', 'label' => 'Неверный номер'],
+            ['value' => 'ad', 'label' => 'Нецелевой'],
         ];
     }
 

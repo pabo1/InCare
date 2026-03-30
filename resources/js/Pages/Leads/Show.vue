@@ -28,6 +28,7 @@ const props = defineProps({
         default: () => ({
             sources: [],
             requestTypes: [],
+            qualities: [],
             branches: [],
             taskTypes: [],
         }),
@@ -41,6 +42,7 @@ const leadForm = useForm({
     phone: props.lead.phone ?? '',
     source: props.lead.source_value ?? '',
     request_type: props.lead.request_type_value ?? '',
+    quality: props.lead.quality_value ?? '',
     branch: props.lead.branch_value ?? '',
 })
 
@@ -62,6 +64,8 @@ const taskForm = useForm({
     due_at: '',
 })
 
+const deleteForm = useForm({})
+
 const dealSelectOptions = computed(() =>
     props.dealOptions.map((option) => ({
         ...option,
@@ -76,6 +80,7 @@ function fillLeadForm() {
     leadForm.phone = props.lead.phone ?? ''
     leadForm.source = props.lead.source_value ?? ''
     leadForm.request_type = props.lead.request_type_value ?? ''
+    leadForm.quality = props.lead.quality_value ?? ''
     leadForm.branch = props.lead.branch_value ?? ''
 }
 
@@ -124,6 +129,14 @@ function submitTask() {
         },
     })
 }
+
+function destroyLead() {
+    if (!window.confirm('Удалить лид? Это действие можно будет отменить только через восстановление из базы.')) {
+        return
+    }
+
+    deleteForm.delete(`/leads/${props.lead.id}`)
+}
 </script>
 
 <template>
@@ -137,18 +150,21 @@ function submitTask() {
             <section class="space-y-6">
                 <div class="crm-panel p-5 sm:p-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
+                        <div class="min-w-0 flex-1">
                             <p class="crm-kicker">Лид</p>
                             <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{{ lead.name || `Лид #${lead.id}` }}</h3>
                             <p class="mt-3 text-sm text-slate-500">Создано: {{ lead.created_at || 'неизвестно' }} · Обновлено: {{ lead.updated_at || 'неизвестно' }}</p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
                             <div v-if="lead.stage" class="crm-pill">
                                 <span class="crm-stage-dot" :style="{ backgroundColor: lead.stage.color || '#94a3b8' }"></span>
                                 <span>{{ lead.stage.name }}</span>
                             </div>
-                            <button v-if="!isEditing" type="button" class="crm-button-ghost" @click="startEditing">Редактировать</button>
-                            <button v-else type="button" class="crm-button-ghost" @click="cancelEditing">Отмена</button>
+                            <button v-if="!isEditing" type="button" class="crm-button-ghost shrink-0" @click="startEditing">Редактировать</button>
+                            <button v-else type="button" class="crm-button-ghost shrink-0" @click="cancelEditing">Отмена</button>
+                            <button type="button" class="crm-button-ghost shrink-0 border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700" :disabled="deleteForm.processing" @click="destroyLead">
+                                {{ deleteForm.processing ? 'Удаление...' : 'Удалить' }}
+                            </button>
                         </div>
                     </div>
 
@@ -186,6 +202,14 @@ function submitTask() {
                                 <option v-for="option in referenceData.branches" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
                             <p v-if="leadForm.errors.branch" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.branch }}</p>
+                        </div>
+                        <div>
+                            <label class="crm-label" for="lead-quality">Качество</label>
+                            <select id="lead-quality" v-model="leadForm.quality" class="crm-select">
+                                <option value="">Не задано</option>
+                                <option v-for="option in referenceData.qualities" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
+                            <p v-if="leadForm.errors.quality" class="mt-2 text-sm text-rose-600">{{ leadForm.errors.quality }}</p>
                         </div>
                         <div class="md:col-span-2 flex flex-wrap gap-3 pt-2">
                             <button type="submit" class="crm-button" :disabled="leadForm.processing">{{ leadForm.processing ? 'Сохранение...' : 'Сохранить изменения' }}</button>
