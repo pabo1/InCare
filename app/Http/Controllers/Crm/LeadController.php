@@ -9,8 +9,10 @@ use App\Models\Pipeline;
 use App\Models\Task;
 use App\Models\PipelineStage;
 use App\Support\CrmReferenceData;
+use App\Support\CrmStageRequirements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -125,7 +127,7 @@ class LeadController extends Controller
                     'is_final' => (bool) $stage->is_final,
                     'is_fail' => (bool) $stage->is_fail,
                     'is_current' => $stage->id === $lead->pipeline_stage_id,
-                    'update_url' => route('crm.pipeline-stages.update', $stage),
+                    'move_url' => route('crm.leads.stage', $lead),
                 ])->values()
                 : [],
             'referenceData' => [
@@ -148,6 +150,44 @@ class LeadController extends Controller
         ]);
 
         $lead->update($data);
+
+        return redirect()->route('crm.leads.show', $lead);
+    }
+
+    public function moveStage(Request $request, Lead $lead): RedirectResponse
+    {
+        $data = $request->validate([
+            'stage_id' => 'required|exists:pipeline_stages,id',
+        ]);
+
+        $stage = PipelineStage::with('pipeline')->findOrFail($data['stage_id']);
+
+        if ($stage->pipeline?->type !== 'leads') {
+            return back()->withErrors([
+                'stage_id' => 'Выбранный этап не относится к воронке лидов.',
+            ]);
+        }
+
+        CrmStageRequirements::assertLeadCanBePlacedInStage($stage, [], $lead, false, 'stage_id');
+
+        DB::transaction(function () use ($lead, $stage, $request): void {
+            $lead->stageHistory()
+                ->whereNull('left_at')
+                ->latest('entered_at')
+                ->first()
+                ?->update(['left_at' => now()]);
+
+            $lead->update([
+                'pipeline_id' => $stage->pipeline_id,
+                'pipeline_stage_id' => $stage->id,
+            ]);
+
+            $lead->stageHistory()->create([
+                'pipeline_stage_id' => $stage->id,
+                'user_id' => $request->user()->id,
+                'entered_at' => now(),
+            ]);
+        });
 
         return redirect()->route('crm.leads.show', $lead);
     }

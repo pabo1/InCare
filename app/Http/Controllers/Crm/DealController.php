@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use App\Models\Pipeline;
+use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Support\CrmReferenceData;
+use App\Support\CrmStageRequirements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -118,7 +121,7 @@ class DealController extends Controller
                     'is_final' => (bool) $stage->is_final,
                     'is_fail' => (bool) $stage->is_fail,
                     'is_current' => $stage->id === $deal->pipeline_stage_id,
-                    'update_url' => route('crm.pipeline-stages.update', $stage),
+                    'move_url' => route('crm.deals.stage', $deal),
                 ])->values()
                 : [],
             'referenceData' => [
@@ -140,6 +143,44 @@ class DealController extends Controller
         ]);
 
         $deal->update($data);
+
+        return redirect()->route('crm.deals.show', $deal);
+    }
+
+    public function moveStage(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'stage_id' => 'required|exists:pipeline_stages,id',
+        ]);
+
+        $stage = PipelineStage::with('pipeline')->findOrFail($data['stage_id']);
+
+        if ($stage->pipeline?->type !== 'deals') {
+            return back()->withErrors([
+                'stage_id' => 'Выбранный этап не относится к воронке сделок.',
+            ]);
+        }
+
+        CrmStageRequirements::assertDealCanBePlacedInStage($stage, [], $deal);
+
+        DB::transaction(function () use ($deal, $stage, $request): void {
+            $deal->stageHistory()
+                ->whereNull('left_at')
+                ->latest('entered_at')
+                ->first()
+                ?->update(['left_at' => now()]);
+
+            $deal->update([
+                'pipeline_id' => $stage->pipeline_id,
+                'pipeline_stage_id' => $stage->id,
+            ]);
+
+            $deal->stageHistory()->create([
+                'pipeline_stage_id' => $stage->id,
+                'user_id' => $request->user()->id,
+                'entered_at' => now(),
+            ]);
+        });
 
         return redirect()->route('crm.deals.show', $deal);
     }
