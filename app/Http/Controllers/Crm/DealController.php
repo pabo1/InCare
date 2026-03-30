@@ -284,7 +284,7 @@ class DealController extends Controller
             }
         }
 
-        return redirect()->route('crm.deals.show', $deal);
+        return to_route('crm.deals.show', $deal, 303);
     }
 
     public function updateAnalyses(Request $request, Deal $deal): RedirectResponse
@@ -307,7 +307,7 @@ class DealController extends Controller
 
         $this->syncAnalyses($deal, $analysesPayload);
 
-        return redirect()->route('crm.deals.show', $deal);
+        return to_route('crm.deals.show', $deal, 303);
     }
 
     public function storeTask(Request $request, Deal $deal): RedirectResponse

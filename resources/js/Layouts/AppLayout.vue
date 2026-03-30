@@ -7,10 +7,6 @@ const props = defineProps({
         type: String,
         default: '',
     },
-    subtitle: {
-        type: String,
-        default: '',
-    },
 })
 
 const page = usePage()
@@ -80,9 +76,6 @@ function logout() {
                 <div>
                     <p class="crm-kicker">Операционный центр</p>
                     <h2 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">{{ title }}</h2>
-                    <p v-if="subtitle" class="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-                        {{ subtitle }}
-                    </p>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
