@@ -17,6 +17,10 @@ const form = useForm({
 })
 
 function moveToStage(stage) {
+    if (stage.is_current || form.processing) {
+        return
+    }
+
     form.stage_id = stage.id
     form.patch(stage.move_url, {
         preserveScroll: true,
@@ -31,7 +35,7 @@ function moveToStage(stage) {
                 <p class="crm-kicker">Этапы</p>
                 <h3 class="crm-section-title mt-2">{{ title }}</h3>
             </div>
-            <p class="text-sm text-slate-500">Нажмите на этап, чтобы перевести запись</p>
+            <p class="text-sm text-slate-500">Нажмите на карточку этапа, чтобы перевести запись</p>
         </div>
 
         <div v-if="form.errors.stage_id" class="crm-empty mt-6 border-rose-200 text-rose-700">
@@ -46,11 +50,17 @@ function moveToStage(stage) {
         </div>
 
         <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <article
+            <button
                 v-for="stage in stages"
                 :key="stage.id"
-                class="rounded-[1.15rem] border p-4"
-                :class="stage.is_current ? 'border-orange-300 bg-orange-50/80 shadow-lg' : 'border-slate-900/8 bg-white/72'"
+                type="button"
+                class="rounded-[1.15rem] border p-4 text-left transition duration-150"
+                :class="[
+                    stage.is_current ? 'border-orange-300 bg-orange-50/80 shadow-lg' : 'border-slate-900/8 bg-white/72 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md',
+                    (!stage.is_current && !form.processing) ? 'cursor-pointer' : 'cursor-default',
+                ]"
+                :disabled="stage.is_current || form.processing"
+                @click="moveToStage(stage)"
             >
                 <div class="flex h-full flex-col justify-between gap-4">
                     <div class="flex items-center gap-3">
@@ -64,19 +74,12 @@ function moveToStage(stage) {
                     </div>
 
                     <div class="flex justify-end">
-                        <button
-                            v-if="!stage.is_current"
-                            type="button"
-                            class="crm-button-ghost"
-                            :disabled="form.processing"
-                            @click="moveToStage(stage)"
-                        >
-                            {{ form.processing && form.stage_id === stage.id ? 'Перевод...' : 'Перевести сюда' }}
-                        </button>
-                        <span v-else class="crm-pill">Текущий этап</span>
+                        <span v-if="stage.is_current" class="crm-pill">Текущий этап</span>
+                        <span v-else-if="form.processing && form.stage_id === stage.id" class="crm-pill">Перевод...</span>
+                        <span v-else class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Перевести сюда</span>
                     </div>
                 </div>
-            </article>
+            </button>
         </div>
     </div>
 </template>
