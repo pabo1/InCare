@@ -59,7 +59,7 @@ function resetFilters() {
 
     <AppLayout
         title="Лиды"
-        subtitle="Здесь начинается работа оператора: входящий поток, квалификация, недозвоны и точки, где лид должен быть доведён до конвертации в сделку."
+        subtitle="Здесь начинается работа оператора: входящий поток, квалификация, недозвоны и точки, где лид должен быть доведен до конвертации в сделку."
     >
         <section class="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
             <form class="crm-panel p-5 sm:p-6" @submit.prevent="submit">

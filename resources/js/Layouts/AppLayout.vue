@@ -59,7 +59,7 @@ function logout() {
                             <span class="block text-sm font-semibold">{{ item.label }}</span>
                             <span class="block text-xs text-slate-500">{{ item.hint }}</span>
                         </span>
-                        <span class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">go</span>
+                        <span class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">вход</span>
                     </Link>
                 </nav>
 
