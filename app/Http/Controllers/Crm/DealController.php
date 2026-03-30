@@ -158,10 +158,12 @@ class DealController extends Controller
             'id' => $deal->id,
             'title' => $deal->name,
             'name' => $deal->name,
-            'branch' => $deal->branch,
-            'payment_status' => $deal->payment_status,
+            'branch' => CrmReferenceData::label('branches', $deal->branch, $deal->branch),
+            'branch_value' => $deal->branch,
+            'payment_status' => CrmReferenceData::label('payment_statuses', $deal->payment_status, $deal->payment_status),
+            'payment_status_value' => $deal->payment_status,
             'appointment_at' => $deal->appointment_at?->format('d.m.Y H:i'),
-            'appointment_relative' => $deal->appointment_at?->diffForHumans(),
+            'appointment_relative' => $deal->appointment_at?->locale('ru')->diffForHumans(),
             'tasks_count' => $deal->tasks_count,
             'contact' => $deal->contact ? [
                 'name' => $deal->contact->name,
@@ -184,11 +186,13 @@ class DealController extends Controller
             'id' => $deal->id,
             'title' => $deal->name,
             'name' => $deal->name,
-            'branch' => $deal->branch,
-            'payment_status' => $deal->payment_status,
+            'branch' => CrmReferenceData::label('branches', $deal->branch, $deal->branch),
+            'branch_value' => $deal->branch,
+            'payment_status' => CrmReferenceData::label('payment_statuses', $deal->payment_status, $deal->payment_status),
+            'payment_status_value' => $deal->payment_status,
             'appointment_at' => $deal->appointment_at?->format('d.m.Y H:i'),
             'appointment_input' => $deal->appointment_at?->format('Y-m-d\\TH:i'),
-            'appointment_relative' => $deal->appointment_at?->diffForHumans(),
+            'appointment_relative' => $deal->appointment_at?->locale('ru')->diffForHumans(),
             'cancel_reason' => $deal->cancel_reason,
             'amount' => $deal->amount,
             'created_at' => $deal->created_at?->format('d.m.Y H:i'),
@@ -225,10 +229,10 @@ class DealController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'description' => $task->description,
-                    'status' => $task->status,
-                    'type' => $task->type,
+                    'status' => CrmReferenceData::label('task_statuses', $task->status, $task->status),
+                    'type' => CrmReferenceData::label('task_types', $task->type, $task->type),
                     'due_at' => $task->due_at?->format('d.m.Y H:i'),
-                    'due_relative' => $task->due_at?->diffForHumans(),
+                    'due_relative' => $task->due_at?->locale('ru')->diffForHumans(),
                     'user' => $task->user?->name,
                 ])->all(),
             'history' => $deal->stageHistory
@@ -236,12 +240,12 @@ class DealController extends Controller
                 ->values()
                 ->map(fn ($history) => [
                     'id' => $history->id,
-                    'title' => $history->stage?->name ?? 'Stage changed',
-                    'subtitle' => $history->user?->name ? 'Owner: ' . $history->user->name : null,
+                    'title' => $history->stage?->name ?? 'Смена этапа',
+                    'subtitle' => $history->user?->name ? 'Ответственный: ' . $history->user->name : null,
                     'time' => $history->entered_at?->format('d.m.Y H:i'),
                     'note' => $history->left_at
-                        ? 'Left stage: ' . $history->left_at->format('d.m.Y H:i')
-                        : 'Current stage',
+                        ? 'Выход из этапа: ' . $history->left_at->format('d.m.Y H:i')
+                        : 'Текущий этап',
                 ])->all(),
         ];
     }

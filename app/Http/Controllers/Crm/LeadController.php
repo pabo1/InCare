@@ -165,11 +165,14 @@ class LeadController extends Controller
             'id' => $lead->id,
             'name' => $lead->name,
             'phone' => $lead->phone,
-            'source' => $lead->source,
-            'request_type' => $lead->request_type,
-            'branch' => $lead->branch,
+            'source' => CrmReferenceData::label('lead_sources', $lead->source, $lead->source),
+            'source_value' => $lead->source,
+            'request_type' => CrmReferenceData::label('request_types', $lead->request_type, $lead->request_type),
+            'request_type_value' => $lead->request_type,
+            'branch' => CrmReferenceData::label('branches', $lead->branch, $lead->branch),
+            'branch_value' => $lead->branch,
             'tasks_count' => $lead->tasks_count,
-            'updated_at' => $lead->updated_at?->diffForHumans(),
+            'updated_at' => $lead->updated_at?->locale('ru')->diffForHumans(),
             'contact' => $lead->contact ? [
                 'name' => $lead->contact->name,
                 'phone' => $lead->contact->phone,
@@ -191,9 +194,12 @@ class LeadController extends Controller
             'id' => $lead->id,
             'name' => $lead->name,
             'phone' => $lead->phone,
-            'source' => $lead->source,
-            'request_type' => $lead->request_type,
-            'branch' => $lead->branch,
+            'source' => CrmReferenceData::label('lead_sources', $lead->source, $lead->source),
+            'source_value' => $lead->source,
+            'request_type' => CrmReferenceData::label('request_types', $lead->request_type, $lead->request_type),
+            'request_type_value' => $lead->request_type,
+            'branch' => CrmReferenceData::label('branches', $lead->branch, $lead->branch),
+            'branch_value' => $lead->branch,
             'quality' => $lead->quality,
             'created_at' => $lead->created_at?->format('d.m.Y H:i'),
             'updated_at' => $lead->updated_at?->format('d.m.Y H:i'),
@@ -221,10 +227,10 @@ class LeadController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'description' => $task->description,
-                    'status' => $task->status,
-                    'type' => $task->type,
+                    'status' => CrmReferenceData::label('task_statuses', $task->status, $task->status),
+                    'type' => CrmReferenceData::label('task_types', $task->type, $task->type),
                     'due_at' => $task->due_at?->format('d.m.Y H:i'),
-                    'due_relative' => $task->due_at?->diffForHumans(),
+                    'due_relative' => $task->due_at?->locale('ru')->diffForHumans(),
                     'user' => $task->user?->name,
                 ])->all(),
             'history' => $lead->stageHistory
@@ -232,12 +238,12 @@ class LeadController extends Controller
                 ->values()
                 ->map(fn ($history) => [
                     'id' => $history->id,
-                    'title' => $history->stage?->name ?? 'Stage changed',
-                    'subtitle' => $history->user?->name ? 'Owner: ' . $history->user->name : null,
+                    'title' => $history->stage?->name ?? 'Смена этапа',
+                    'subtitle' => $history->user?->name ? 'Ответственный: ' . $history->user->name : null,
                     'time' => $history->entered_at?->format('d.m.Y H:i'),
                     'note' => $history->left_at
-                        ? 'Left stage: ' . $history->left_at->format('d.m.Y H:i')
-                        : 'Current stage',
+                        ? 'Выход из этапа: ' . $history->left_at->format('d.m.Y H:i')
+                        : 'Текущий этап',
                 ])->all(),
         ];
     }
@@ -248,8 +254,10 @@ class LeadController extends Controller
             'id' => $deal->id,
             'title' => $deal->name,
             'name' => $deal->name,
-            'branch' => $deal->branch,
-            'payment_status' => $deal->payment_status,
+            'branch' => CrmReferenceData::label('branches', $deal->branch, $deal->branch),
+            'branch_value' => $deal->branch,
+            'payment_status' => CrmReferenceData::label('payment_statuses', $deal->payment_status, $deal->payment_status),
+            'payment_status_value' => $deal->payment_status,
             'appointment_at' => $deal->appointment_at?->format('d.m.Y H:i'),
             'tasks_count' => $deal->tasks_count,
             'contact' => $deal->contact ? [

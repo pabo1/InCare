@@ -57,7 +57,7 @@ function resetFilters() {
 
     <AppLayout
         title="Сделки"
-        subtitle="Производственный процесс по направлению “Сдача анализов”: запись, напоминание, визит, готовность результатов и финальные статусы."
+        subtitle="Производственный процесс по направлению «Сдача анализов»: запись, напоминание, визит, готовность результатов и финальные статусы."
     >
         <section class="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
             <form class="crm-panel p-5 sm:p-6" @submit.prevent="submit">

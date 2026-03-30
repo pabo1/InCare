@@ -37,7 +37,7 @@ const props = defineProps({
             </div>
             <div>
                 <p class="crm-kicker !text-[0.66rem]">Оплата</p>
-                <p class="mt-1 font-medium text-slate-900">{{ deal.payment_status || 'unpaid' }}</p>
+                <p class="mt-1 font-medium text-slate-900">{{ deal.payment_status || 'Не оплачено' }}</p>
             </div>
         </div>
 

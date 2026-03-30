@@ -25,18 +25,18 @@ const props = defineProps({
 const isEditing = ref(false)
 const form = useForm({
     name: props.deal.name ?? props.deal.title ?? '',
-    branch: props.deal.branch ?? '',
+    branch: props.deal.branch_value ?? '',
     appointment_at: props.deal.appointment_input ?? '',
-    payment_status: props.deal.payment_status ?? '',
+    payment_status: props.deal.payment_status_value ?? '',
     cancel_reason: props.deal.cancel_reason ?? '',
     amount: props.deal.amount ?? '',
 })
 
 function fillForm() {
     form.name = props.deal.name ?? props.deal.title ?? ''
-    form.branch = props.deal.branch ?? ''
+    form.branch = props.deal.branch_value ?? ''
     form.appointment_at = props.deal.appointment_input ?? ''
-    form.payment_status = props.deal.payment_status ?? ''
+    form.payment_status = props.deal.payment_status_value ?? ''
     form.cancel_reason = props.deal.cancel_reason ?? ''
     form.amount = props.deal.amount ?? ''
 }

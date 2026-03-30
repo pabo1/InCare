@@ -32,17 +32,17 @@ const isEditing = ref(false)
 const form = useForm({
     name: props.lead.name ?? '',
     phone: props.lead.phone ?? '',
-    source: props.lead.source ?? '',
-    request_type: props.lead.request_type ?? '',
-    branch: props.lead.branch ?? '',
+    source: props.lead.source_value ?? '',
+    request_type: props.lead.request_type_value ?? '',
+    branch: props.lead.branch_value ?? '',
 })
 
 function fillForm() {
     form.name = props.lead.name ?? ''
     form.phone = props.lead.phone ?? ''
-    form.source = props.lead.source ?? ''
-    form.request_type = props.lead.request_type ?? ''
-    form.branch = props.lead.branch ?? ''
+    form.source = props.lead.source_value ?? ''
+    form.request_type = props.lead.request_type_value ?? ''
+    form.branch = props.lead.branch_value ?? ''
 }
 
 function startEditing() {
