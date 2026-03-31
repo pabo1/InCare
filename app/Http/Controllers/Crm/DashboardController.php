@@ -23,15 +23,17 @@ class DashboardController extends Controller
         $recentLeads = Lead::query()
             ->with(['stage', 'contact'])
             ->withCount('tasks')
-            ->latest()
+            ->whereHas('stage', fn ($query) => $query->where('is_final', false))
+            ->latest('updated_at')
             ->limit(4)
             ->get();
 
         $upcomingDeals = Deal::query()
             ->with(['stage', 'contact', 'analyses'])
             ->withCount('tasks')
+            ->whereHas('stage', fn ($query) => $query->where('is_final', false))
             ->whereNotNull('appointment_at')
-            ->where('appointment_at', '>=', now()->startOfDay())
+            ->where('appointment_at', '>', now())
             ->orderBy('appointment_at')
             ->limit(4)
             ->get();

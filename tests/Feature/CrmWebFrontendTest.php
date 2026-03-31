@@ -115,6 +115,89 @@ class CrmWebFrontendTest extends TestCase
             );
     }
 
+    public function test_dashboard_shows_only_active_leads_and_upcoming_non_final_deals(): void
+    {
+        $user = $this->adminUser();
+        $this->actingAs($user);
+
+        $activeLeadStage = PipelineStage::query()
+            ->whereHas('pipeline', fn ($query) => $query->where('type', 'leads'))
+            ->where('is_final', false)
+            ->orderBy('sort_order')
+            ->firstOrFail();
+
+        $finalLeadStage = PipelineStage::query()
+            ->whereHas('pipeline', fn ($query) => $query->where('type', 'leads'))
+            ->where('is_final', true)
+            ->orderBy('sort_order')
+            ->firstOrFail();
+
+        $activeDealStage = PipelineStage::query()
+            ->whereHas('pipeline', fn ($query) => $query->where('type', 'deals'))
+            ->where('is_final', false)
+            ->orderBy('sort_order')
+            ->firstOrFail();
+
+        $finalDealStage = PipelineStage::query()
+            ->whereHas('pipeline', fn ($query) => $query->where('type', 'deals'))
+            ->where('is_final', true)
+            ->orderBy('sort_order')
+            ->firstOrFail();
+
+        Lead::create([
+            'pipeline_id' => $activeLeadStage->pipeline_id,
+            'pipeline_stage_id' => $activeLeadStage->id,
+            'user_id' => $user->id,
+            'name' => 'Активный лид',
+            'source' => 'telegram',
+            'request_type' => 'analyses',
+        ]);
+
+        Lead::create([
+            'pipeline_id' => $finalLeadStage->pipeline_id,
+            'pipeline_stage_id' => $finalLeadStage->id,
+            'user_id' => $user->id,
+            'name' => 'Закрытый лид',
+            'source' => 'telegram',
+            'request_type' => 'analyses',
+        ]);
+
+        Deal::create([
+            'pipeline_id' => $activeDealStage->pipeline_id,
+            'pipeline_stage_id' => $activeDealStage->id,
+            'user_id' => $user->id,
+            'name' => 'Предстоящая сделка',
+            'appointment_at' => now()->addHour(),
+            'payment_status' => Deal::PAYMENT_UNPAID,
+        ]);
+
+        Deal::create([
+            'pipeline_id' => $activeDealStage->pipeline_id,
+            'pipeline_stage_id' => $activeDealStage->id,
+            'user_id' => $user->id,
+            'name' => 'Прошедшая сделка',
+            'appointment_at' => now()->subHour(),
+            'payment_status' => Deal::PAYMENT_UNPAID,
+        ]);
+
+        Deal::create([
+            'pipeline_id' => $finalDealStage->pipeline_id,
+            'pipeline_stage_id' => $finalDealStage->id,
+            'user_id' => $user->id,
+            'name' => 'Финальная сделка',
+            'appointment_at' => now()->addDay(),
+            'payment_status' => Deal::PAYMENT_PAID,
+        ]);
+
+        $this->get(route('crm.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('recentLeads', fn ($leads) => collect($leads)->pluck('name')->all() === ['Активный лид'])
+                ->where('upcomingDeals', fn ($deals) => collect($deals)->pluck('name')->all() === ['Предстоящая сделка'])
+            );
+    }
+
     private function adminUser(): User
     {
         return User::query()->where('email', 'admin@clinic.test')->firstOrFail();

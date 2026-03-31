@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -10,9 +10,11 @@ const props = defineProps({
 })
 
 const page = usePage()
+const now = ref(null)
+let timerId = null
 
 const navigation = [
-    { href: '/dashboard', label: 'InCare CRM', hint: 'сводка' },
+    { href: '/dashboard', label: 'InCare CRM', hint: 'Сводка' },
     { href: '/leads', label: 'Лиды', hint: 'первичный поток' },
     { href: '/deals', label: 'Сделки', hint: 'сдача анализов' },
 ]
@@ -23,6 +25,36 @@ const currentPath = computed(() => {
 })
 
 const user = computed(() => page.props.auth?.user ?? null)
+const appTimezone = computed(() => page.props.app?.timezone ?? 'UTC')
+const serverNow = computed(() => page.props.app?.server_now ?? null)
+const formattedNow = computed(() => {
+    if (!now.value) {
+        return ''
+    }
+
+    return new Intl.DateTimeFormat('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: appTimezone.value,
+    }).format(now.value)
+})
+
+onMounted(() => {
+    now.value = serverNow.value ? new Date(serverNow.value) : new Date()
+
+    timerId = window.setInterval(() => {
+        now.value = new Date(now.value.getTime() + 60000)
+    }, 60000)
+})
+
+onBeforeUnmount(() => {
+    if (timerId) {
+        window.clearInterval(timerId)
+    }
+})
 
 function logout() {
     router.post('/logout')
@@ -76,6 +108,7 @@ function logout() {
                 <div>
                     <p class="crm-kicker">Операционный центр</p>
                     <h2 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">{{ title }}</h2>
+                    <p class="mt-2 text-sm font-medium text-slate-500">{{ formattedNow }}</p>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
